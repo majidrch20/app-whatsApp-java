@@ -19,7 +19,7 @@ public class MainApp extends Application {
 
     @Override
     public void start(Stage primaryStage) {
-        network = new NetworkClient("100.104.161.118", 5000);
+        network = new NetworkClient("localhost", 5000);
         auth = new AuthService(network);
 
         if (SessionManager.hasSession()) {
