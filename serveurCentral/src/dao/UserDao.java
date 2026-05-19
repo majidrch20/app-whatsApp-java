@@ -166,35 +166,27 @@ public class UserDao {
     }
 
     public User searchByPhone(String phone) {
-        User exact = getByPhone(phone);
+        if (phone == null || phone.trim().isEmpty()) return null;
+        String trimmed = phone.trim();
+        User exact = getByPhone(trimmed);
         if (exact != null) return exact;
-
-        String targetDigits = normalizeDigits(phone);
-        if (targetDigits.isEmpty()) return null;
 
         String sql = "SELECT * FROM users";
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
 
-            List<User> candidates = new ArrayList<>();
             while (rs.next()) {
-                candidates.add(new User(
-                        rs.getInt("id"),
-                        rs.getString("phone"),
-                        rs.getString("username"),
-                        rs.getString("verification_code"),
-                        rs.getBoolean("verified"),
-                        rs.getString("status")
-                ));
-            }
-
-            for (User u : candidates) {
-                String dbDigits = normalizeDigits(u.getPhone());
-                if (dbDigits.equals(targetDigits)
-                        || dbDigits.equals(stripInternationalPrefix(targetDigits))
-                        || stripInternationalPrefix(dbDigits).equals(targetDigits)) {
-                    return u;
+                String dbPhone = rs.getString("phone");
+                if (isSamePhone(trimmed, dbPhone)) {
+                    return new User(
+                            rs.getInt("id"),
+                            dbPhone,
+                            rs.getString("username"),
+                            rs.getString("verification_code"),
+                            rs.getBoolean("verified"),
+                            rs.getString("status")
+                    );
                 }
             }
         } catch (Exception e) {
@@ -203,14 +195,17 @@ public class UserDao {
         return null;
     }
 
-    private String normalizeDigits(String input) {
-        if (input == null) return "";
-        return input.replaceAll("[^0-9]", "");
-    }
-
-    private String stripInternationalPrefix(String digits) {
-        if (digits == null) return "";
-        if (digits.startsWith("00") && digits.length() > 2) return digits.substring(2);
-        return digits;
+    private boolean isSamePhone(String p1, String p2) {
+        if (p1 == null || p2 == null) return false;
+        String d1 = p1.replaceAll("[^0-9]", "");
+        String d2 = p2.replaceAll("[^0-9]", "");
+        if (d1.equals(d2)) return true;
+        
+        int len1 = d1.length();
+        int len2 = d2.length();
+        if (len1 >= 9 && len2 >= 9) {
+            return d1.substring(len1 - 9).equals(d2.substring(len2 - 9));
+        }
+        return false;
     }
 }

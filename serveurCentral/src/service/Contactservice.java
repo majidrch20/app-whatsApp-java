@@ -35,6 +35,18 @@ public class Contactservice {
                     + " → trouvé : " + (target != null ? target.getId() : "NULL")); // DEBUG
 
             if (target != null) {
+                // ✅ Empêcher de s'ajouter soi-même par ID
+                if (target.getId() == userId) {
+                    sendResponse(handler, "ADD_FAIL:SELF");
+                    return;
+                }
+                
+                // ✅ Empêcher d'ajouter deux fois
+                if (contactDao.contactExists(userId, target.getId())) {
+                    sendResponse(handler, "ADD_FAIL:ALREADY_EXISTS");
+                    return;
+                }
+
                 boolean added = contactDao.addContact(userId, target.getId(), nickname);
                 System.out.println("[Contactservice] addContact résultat : " + added); // DEBUG
                 if (!added) {
@@ -82,6 +94,16 @@ public class Contactservice {
             if (groupId != -1) {
                 sendResponse(handler, "CREATE_GROUP_OK");
                 handleGet(userId, handler);
+                
+                // Notifier immédiatement les autres membres en ligne du groupe
+                for (int memberId : memberIds) {
+                    if (memberId == userId) continue;
+                    ClientHandler memberHandler = ChatServer.clients.get(memberId);
+                    if (memberHandler != null) {
+                        handleGet(memberId, memberHandler);
+                        sendResponse(memberHandler, "NOTIFY_ADDED_TO_GROUP:" + groupName);
+                    }
+                }
             } else {
                 sendResponse(handler, "CREATE_GROUP_FAIL");
             }
@@ -101,6 +123,8 @@ public class Contactservice {
                         ClientHandler targetHandler = ChatServer.clients.get(targetUser.getId());
                         if (targetHandler != null) {
                             handleGet(targetUser.getId(), targetHandler);
+                            String groupName = groupDao.getGroupName(groupId);
+                            sendResponse(targetHandler, "NOTIFY_ADDED_TO_GROUP:" + groupName);
                         }
                     } else {
                         sendResponse(handler, "ADD_MEMBER_FAIL");
@@ -123,6 +147,8 @@ public class Contactservice {
                         ClientHandler targetHandler = ChatServer.clients.get(targetUser.getId());
                         if (targetHandler != null) {
                             handleGet(targetUser.getId(), targetHandler);
+                            String groupName = groupDao.getGroupName(groupId);
+                            sendResponse(targetHandler, "NOTIFY_REMOVED_FROM_GROUP:" + groupName);
                         }
                     } else {
                         sendResponse(handler, "REMOVE_MEMBER_FAIL");

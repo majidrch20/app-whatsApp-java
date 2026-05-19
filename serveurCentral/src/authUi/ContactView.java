@@ -49,6 +49,26 @@ public class ContactView {
         Platform.runLater(() -> {
             if (payload == null) return;
 
+            // Gestion des notifications de groupes
+            if (payload.startsWith("NOTIFY_ADDED_TO_GROUP:")) {
+                String groupName = payload.substring("NOTIFY_ADDED_TO_GROUP:".length());
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                alert.setTitle("Nouveau Groupe");
+                alert.setHeaderText(null);
+                alert.setContentText("Vous avez été ajouté au groupe : " + groupName);
+                alert.showAndWait();
+                return;
+            }
+            if (payload.startsWith("NOTIFY_REMOVED_FROM_GROUP:")) {
+                String groupName = payload.substring("NOTIFY_REMOVED_FROM_GROUP:".length());
+                javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                alert.setTitle("Groupe Retiré");
+                alert.setHeaderText(null);
+                alert.setContentText("Vous avez été retiré du groupe : " + groupName);
+                alert.showAndWait();
+                return;
+            }
+
             // Gestion des erreurs d'ajout
             if (payload.startsWith("ADD_FAIL:")) {
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
@@ -58,6 +78,8 @@ public class ContactView {
                     alert.setContentText("Ce numéro n'existe pas dans la base de données ! Impossible de l'ajouter.");
                 } else if (payload.equals("ADD_FAIL:SELF")) {
                     alert.setContentText("Vous ne pouvez pas vous ajouter vous-même !");
+                } else if (payload.equals("ADD_FAIL:ALREADY_EXISTS")) {
+                    alert.setContentText("Ce contact est déjà dans votre liste !");
                 } else {
                     alert.setContentText("Impossible d'ajouter ce contact pour le moment.");
                 }

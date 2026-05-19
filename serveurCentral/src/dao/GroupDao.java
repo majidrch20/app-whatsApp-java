@@ -104,4 +104,19 @@ public class GroupDao {
         }
         return false;
     }
+
+    public String getGroupName(int groupId) {
+        String sql = "SELECT name FROM `groups` WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, groupId);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                return rs.getString("name");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return "Groupe";
+    }
 }

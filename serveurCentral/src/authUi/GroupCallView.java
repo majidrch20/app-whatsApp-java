@@ -46,6 +46,7 @@ public class GroupCallView {
 
     // Maps to track participant streams
     private final Map<String, ImageView> participantVideos = new ConcurrentHashMap<>();
+    private final Map<String, VBox> participantBoxes = new ConcurrentHashMap<>();
     private final Map<String, SourceDataLine> participantAudios = new ConcurrentHashMap<>();
 
     public GroupCallView(int groupId, String groupName, boolean isVideoEnabled, Runnable onLeave) {
@@ -84,8 +85,8 @@ public class GroupCallView {
             root.getChildren().addAll(title, statusLbl, videoGrid);
         }
 
-        Button btnLeave = new Button("Quitter");
-        btnLeave.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold; -fx-background-radius: 5px;");
+        Button btnLeave = new Button("Quitter la réunion");
+        btnLeave.setStyle("-fx-background-color: #e53935; -fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 14px; -fx-background-radius: 20px; -fx-padding: 8px 20px; -fx-cursor: hand;");
         btnLeave.setOnAction(e -> leaveMeeting());
 
         root.getChildren().add(btnLeave);
@@ -142,8 +143,9 @@ public class GroupCallView {
                     
                     VBox localBox = new VBox(5);
                     localBox.setAlignment(Pos.CENTER);
+                    localBox.setStyle("-fx-background-color: #2b3930; -fx-padding: 10px; -fx-background-radius: 8px;");
                     Label localLbl = new Label("Moi");
-                    localLbl.setStyle("-fx-text-fill: white;");
+                    localLbl.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
                     localBox.getChildren().addAll(localView, localLbl);
                     
                     Platform.runLater(() -> videoGrid.getChildren().add(localBox));
@@ -207,11 +209,13 @@ public class GroupCallView {
                     
                     VBox box = new VBox(5);
                     box.setAlignment(Pos.CENTER);
+                    box.setStyle("-fx-background-color: #2b3930; -fx-padding: 10px; -fx-background-radius: 8px;");
                     Label nameLbl = new Label(senderPhone);
-                    nameLbl.setStyle("-fx-text-fill: white;");
+                    nameLbl.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
                     box.getChildren().addAll(newView, nameLbl);
                     
                     participantVideos.put(senderPhone, newView);
+                    participantBoxes.put(senderPhone, box);
                     Platform.runLater(() -> videoGrid.getChildren().add(box));
                     view = newView;
                 }
@@ -224,13 +228,15 @@ public class GroupCallView {
 
     public void removeParticipant(String senderPhone) {
         participantVideos.remove(senderPhone);
+        VBox box = participantBoxes.remove(senderPhone);
+        if (box != null) {
+            Platform.runLater(() -> videoGrid.getChildren().remove(box));
+        }
         SourceDataLine line = participantAudios.remove(senderPhone);
         if (line != null) {
             line.stop();
             line.close();
         }
-        // Pour simplifier l'UI, on ne retire pas immédiatement la box de la grid (elle figera),
-        // mais idéalement il faudrait la retirer.
     }
 
     public void leaveMeeting() {
@@ -248,6 +254,8 @@ public class GroupCallView {
             line.close();
         }
         participantAudios.clear();
+        participantVideos.clear();
+        participantBoxes.clear();
 
         // Signaler au serveur qu'on quitte
         String payload = "GROUP_CALL_LEAVE:" + groupId;
