@@ -386,7 +386,7 @@ public class ChatView {
         SessionManager.clearSession();
         SocketManager.reset();
         stage.close();
-        NetworkClient freshNetwork = new NetworkClient("localhost", 5000);
+        NetworkClient freshNetwork = new NetworkClient("100.104.161.251", 5000);
         new PhoneView(new AuthService(freshNetwork), freshNetwork).start(new Stage());
     }
 
