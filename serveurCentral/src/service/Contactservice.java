@@ -62,6 +62,16 @@ public class Contactservice {
         } else if (payload.equals("GET_CONTACTS")) {
             handleGet(userId, handler);
 
+        } else if (payload.startsWith("REMOVE:GROUP:")) {
+            try {
+                int groupId = Integer.parseInt(payload.substring(13).trim());
+                dao.GroupDao groupDao = new dao.GroupDao();
+                groupDao.removeMemberFromGroup(groupId, userId);
+            } catch (NumberFormatException e) {
+                e.printStackTrace();
+            }
+            handleGet(userId, handler); // ✅ Renvoyer la liste après suppression
+
         } else if (payload.startsWith("REMOVE:")) {
             String targetPhone = normalizePhone(payload.substring(7));
             User target = userDao.searchByPhone(targetPhone);

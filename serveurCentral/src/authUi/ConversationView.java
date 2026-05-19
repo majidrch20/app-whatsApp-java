@@ -492,7 +492,8 @@ public class ConversationView {
         timeLabel.setAlignment(Pos.CENTER_RIGHT);
 
         if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
-            Label senderLbl = new Label(m.getSenderPhone());
+            String name = client.SocketManager.phoneToName.getOrDefault(m.getSenderPhone(), m.getSenderPhone());
+            Label senderLbl = new Label(name);
             senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
             bubble.getChildren().add(0, senderLbl);
         }
@@ -540,7 +541,8 @@ public class ConversationView {
         actions.getChildren().addAll(openBtn, downloadBtn);
 
         if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
-            Label senderLbl = new Label(m.getSenderPhone());
+            String name = client.SocketManager.phoneToName.getOrDefault(m.getSenderPhone(), m.getSenderPhone());
+            Label senderLbl = new Label(name);
             senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
             bubble.getChildren().add(0, senderLbl);
         }
@@ -612,7 +614,8 @@ public class ConversationView {
         timeLabel.setAlignment(Pos.CENTER_RIGHT);
 
         if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
-            Label senderLbl = new Label(m.getSenderPhone());
+            String name = client.SocketManager.phoneToName.getOrDefault(m.getSenderPhone(), m.getSenderPhone());
+            Label senderLbl = new Label(name);
             senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
             bubble.getChildren().add(0, senderLbl);
         }

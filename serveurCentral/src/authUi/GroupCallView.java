@@ -210,7 +210,8 @@ public class GroupCallView {
                     VBox box = new VBox(5);
                     box.setAlignment(Pos.CENTER);
                     box.setStyle("-fx-background-color: #2b3930; -fx-padding: 10px; -fx-background-radius: 8px;");
-                    Label nameLbl = new Label(senderPhone);
+                    String displayName = SocketManager.phoneToName.getOrDefault(senderPhone, senderPhone);
+                    Label nameLbl = new Label(displayName);
                     nameLbl.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
                     box.getChildren().addAll(newView, nameLbl);
                     

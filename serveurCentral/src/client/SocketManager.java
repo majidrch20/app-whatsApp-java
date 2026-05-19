@@ -4,6 +4,7 @@ import java.io.*;
 import java.net.Socket;
 
 public class SocketManager {
+    public static final java.util.Map<String, String> phoneToName = new java.util.concurrent.ConcurrentHashMap<>();
     private static SocketManager instance;
     private Socket socket;
     private DataOutputStream binOut;

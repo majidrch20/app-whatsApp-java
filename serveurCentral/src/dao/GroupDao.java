@@ -98,11 +98,32 @@ public class GroupDao {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, groupId);
             ps.setInt(2, userId);
-            return ps.executeUpdate() > 0;
+            boolean deleted = ps.executeUpdate() > 0;
+            if (deleted) {
+                cleanupIfEmpty(groupId);
+            }
+            return deleted;
         } catch (Exception e) {
             e.printStackTrace();
         }
         return false;
+    }
+
+    private void cleanupIfEmpty(int groupId) {
+        String sqlCount = "SELECT COUNT(*) FROM group_members WHERE group_id = ?";
+        String sqlDelete = "DELETE FROM `groups` WHERE id = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement psCount = conn.prepareStatement(sqlCount);
+             PreparedStatement psDelete = conn.prepareStatement(sqlDelete)) {
+            psCount.setInt(1, groupId);
+            ResultSet rs = psCount.executeQuery();
+            if (rs.next() && rs.getInt(1) == 0) {
+                psDelete.setInt(1, groupId);
+                psDelete.executeUpdate();
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     public String getGroupName(int groupId) {

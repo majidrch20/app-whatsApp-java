@@ -177,6 +177,9 @@ public class ContactView {
     }
 
     private void addContactUI(String phone, String name, String status) {
+        // Enregistrer la correspondance numéro -> nom
+        SocketManager.phoneToName.put(phone, name);
+
         HBox item = new HBox(12);
         item.setPadding(new Insets(12, 15, 12, 15));
         item.setAlignment(Pos.CENTER_LEFT);
@@ -206,7 +209,16 @@ public class ContactView {
         btnDelete.setStyle("-fx-background-color: transparent; -fx-text-fill: #dc3c3c; -fx-font-size: 16px; -fx-cursor: hand;");
         btnDelete.setOnAction(e -> {
             e.consume();
-            SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", ("REMOVE:" + phone).getBytes(StandardCharsets.UTF_8));
+            boolean isGrp = phone.startsWith("GROUP:");
+            javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.CONFIRMATION);
+            alert.setTitle(isGrp ? "Quitter le groupe" : "Supprimer le contact");
+            alert.setHeaderText(null);
+            alert.setContentText(isGrp ? "Voulez-vous vraiment quitter le groupe \"" + name + "\" ?" : "Voulez-vous vraiment supprimer le contact \"" + name + "\" ?");
+            
+            java.util.Optional<javafx.scene.control.ButtonType> result = alert.showAndWait();
+            if (result.isPresent() && result.get() == javafx.scene.control.ButtonType.OK) {
+                SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", ("REMOVE:" + phone).getBytes(StandardCharsets.UTF_8));
+            }
         });
 
         item.getChildren().addAll(avatar, info, statusLbl, spacer, btnDelete);
