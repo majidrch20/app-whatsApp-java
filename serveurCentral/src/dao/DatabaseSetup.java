@@ -15,11 +15,7 @@ public class DatabaseSetup {
                                "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP" +
                                ")");
             
-            try {
-                stmt.executeUpdate("DROP TABLE IF EXISTS group_members");
-            } catch (Exception e) {}
-            
-            stmt.executeUpdate("CREATE TABLE group_members (" +
+            stmt.executeUpdate("CREATE TABLE IF NOT EXISTS group_members (" +
                                "group_id INT NOT NULL, " +
                                "user_id INT NOT NULL, " +
                                "PRIMARY KEY (group_id, user_id), " +

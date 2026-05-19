@@ -75,15 +75,83 @@ public class SocketManager {
         void onDisconnect();
     }
 
+    private java.net.DatagramSocket udpSocket;
+    private java.net.InetAddress udpServerAddress;
+    private int udpServerPort;
+
     public void initAuth(Socket s, int id, String p) {
         this.socket = s;
         this.userId = id;
         this.userPhone = p;
     }
 
+    public void initUdp(String host, int port, MessageListener listener) {
+        try {
+            this.udpServerAddress = java.net.InetAddress.getByName(host);
+            this.udpServerPort = port;
+            this.udpSocket = new java.net.DatagramSocket();
+
+            // Lancer le thread d'écoute UDP
+            new Thread(() -> {
+                byte[] buffer = new byte[65535];
+                while (udpSocket != null && !udpSocket.isClosed()) {
+                    try {
+                        java.net.DatagramPacket packet = new java.net.DatagramPacket(buffer, buffer.length);
+                        udpSocket.receive(packet);
+
+                        DataInputStream in = new DataInputStream(new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength()));
+                        byte type = in.readByte();
+                        String senderPhone = in.readUTF();
+                        int dataLength = in.readInt();
+                        byte[] mediaData = new byte[dataLength];
+                        in.readFully(mediaData);
+
+                        String strType = (type == 2) ? "UDP_AUDIO" : "UDP_VIDEO";
+                        if (listener != null) {
+                            listener.onMessage(strType, senderPhone, "", mediaData);
+                        }
+                    } catch (Exception e) {
+                        break;
+                    }
+                }
+            }).start();
+
+            // Envoyer le paquet BIND (Type=1)
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(baos);
+            out.writeByte(1); // TYPE_BIND
+            out.writeInt(this.userId);
+            out.flush();
+            byte[] bindData = baos.toByteArray();
+            udpSocket.send(new java.net.DatagramPacket(bindData, bindData.length, udpServerAddress, udpServerPort));
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void sendUdpMedia(byte type, int groupId, byte[] data) {
+        if (udpSocket == null || udpServerAddress == null) return;
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            DataOutputStream out = new DataOutputStream(baos);
+            out.writeByte(type);
+            out.writeInt(groupId);
+            out.writeUTF(userPhone != null ? userPhone : "");
+            out.writeInt(data.length);
+            out.write(data);
+            out.flush();
+
+            byte[] packetData = baos.toByteArray();
+            udpSocket.send(new java.net.DatagramPacket(packetData, packetData.length, udpServerAddress, udpServerPort));
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+    }
+
     public static void reset() {
-        try { if(instance != null && instance.socket != null) instance.socket.close(); }
-        catch(Exception e){}
+        try { if(instance != null && instance.socket != null) instance.socket.close(); } catch(Exception e){}
+        try { if(instance != null && instance.udpSocket != null) instance.udpSocket.close(); } catch(Exception e){}
         instance = null;
     }
 }

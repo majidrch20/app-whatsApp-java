@@ -50,6 +50,8 @@ public class ConversationView {
     private Runnable onBack;
     private Runnable onAudioCall;
     private Runnable onVideoCall;
+    private Runnable onGroupMeeting;   // appel vidéo groupe
+    private Runnable onGroupAudioCall; // appel audio groupe
 
     private final MessageDao messageDao = new MessageDao();
     private final UserDao userDao = new UserDao();
@@ -98,6 +100,14 @@ public class ConversationView {
         this.onVideoCall = onVideoCall;
     }
 
+    public void setOnGroupMeeting(Runnable onGroupMeeting) {
+        this.onGroupMeeting = onGroupMeeting;
+    }
+
+    public void setOnGroupAudioCall(Runnable onGroupAudioCall) {
+        this.onGroupAudioCall = onGroupAudioCall;
+    }
+
     public BorderPane getView() {
         return view;
     }
@@ -136,12 +146,25 @@ public class ConversationView {
         btnVideoCall.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-cursor: hand;");
         btnVideoCall.setOnAction(e -> { if (onVideoCall != null) onVideoCall.run(); });
 
+        Button btnManageMembers = new Button("👥 Gérer");
+        btnManageMembers.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand; -fx-border-color: gray; -fx-border-radius: 5px;");
+        btnManageMembers.setOnAction(e -> showManageMembersDialog());
+
+        Button btnMeeting = new Button("📹 Vidéo");
+        btnMeeting.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #25D366; -fx-border-radius: 5px;");
+        btnMeeting.setOnAction(e -> { if (onGroupMeeting != null) onGroupMeeting.run(); });
+
+        Button btnAudioGroup = new Button("📞 Audio");
+        btnAudioGroup.setStyle("-fx-background-color: transparent; -fx-text-fill: #53bdeb; -fx-font-size: 13px; -fx-cursor: hand; -fx-border-color: #53bdeb; -fx-border-radius: 5px;");
+        btnAudioGroup.setOnAction(e -> { if (onGroupAudioCall != null) onGroupAudioCall.run(); });
+
         if (isGroup) {
             btnAudioCall.setVisible(false);
             btnVideoCall.setVisible(false);
+            header.getChildren().addAll(btnBack, avatar, info, spacer, btnAudioGroup, btnMeeting, btnManageMembers);
+        } else {
+            header.getChildren().addAll(btnBack, avatar, info, spacer, btnAudioCall, btnVideoCall);
         }
-
-        header.getChildren().addAll(btnBack, avatar, info, spacer, btnAudioCall, btnVideoCall);
         view.setTop(header);
 
         // Messages
@@ -602,5 +625,52 @@ public class ConversationView {
 
     private void scrollToBottom() {
         Platform.runLater(() -> scrollPane.setVvalue(1.0));
+    }
+
+    private void showManageMembersDialog() {
+        javafx.stage.Stage dialog = new javafx.stage.Stage();
+        dialog.initModality(javafx.stage.Modality.APPLICATION_MODAL);
+        dialog.setTitle("Gérer les membres - " + contactName);
+
+        javafx.scene.layout.VBox vbox = new javafx.scene.layout.VBox(15);
+        vbox.setPadding(new javafx.geometry.Insets(20));
+        vbox.setStyle("-fx-background-color: #0b140e;");
+        vbox.setAlignment(javafx.geometry.Pos.CENTER);
+
+        javafx.scene.control.Label lbl = new javafx.scene.control.Label("Numéro du contact :");
+        lbl.setStyle("-fx-text-fill: white; -fx-font-size: 14px;");
+
+        javafx.scene.control.TextField phoneInput = new javafx.scene.control.TextField();
+        phoneInput.setPromptText("Ex: 0612345678");
+        phoneInput.setStyle("-fx-background-color: #2a3942; -fx-text-fill: white; -fx-prompt-text-fill: gray;");
+
+        javafx.scene.control.Button btnAdd = new javafx.scene.control.Button("Ajouter au groupe");
+        btnAdd.setStyle("-fx-background-color: #00a884; -fx-text-fill: white; -fx-font-weight: bold;");
+        
+        javafx.scene.control.Button btnRemove = new javafx.scene.control.Button("Retirer du groupe");
+        btnRemove.setStyle("-fx-background-color: #d32f2f; -fx-text-fill: white; -fx-font-weight: bold;");
+
+        btnAdd.setOnAction(e -> {
+            String phone = phoneInput.getText().trim();
+            if (!phone.isEmpty()) {
+                String payload = "ADD_GROUP_MEMBER:" + groupId + ":" + phone;
+                client.SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                dialog.close();
+            }
+        });
+
+        btnRemove.setOnAction(e -> {
+            String phone = phoneInput.getText().trim();
+            if (!phone.isEmpty()) {
+                String payload = "REMOVE_GROUP_MEMBER:" + groupId + ":" + phone;
+                client.SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", payload.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                dialog.close();
+            }
+        });
+
+        vbox.getChildren().addAll(lbl, phoneInput, btnAdd, btnRemove);
+        javafx.scene.Scene scene = new javafx.scene.Scene(vbox, 300, 200);
+        dialog.setScene(scene);
+        dialog.show();
     }
 }

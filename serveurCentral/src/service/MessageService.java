@@ -66,6 +66,15 @@ public class MessageService {
     }
 
     public void processGroupMessage(Message m, int groupId, byte[] data) {
+        dao.GroupDao groupDao = new dao.GroupDao();
+        List<Integer> memberIds = groupDao.getGroupMemberIds(groupId);
+        
+        // Vérifier si l'expéditeur fait toujours partie du groupe
+        if (!memberIds.contains(m.getSenderId())) {
+            System.err.println("[MessageService] Expéditeur " + m.getSenderId() + " n'est plus membre du groupe " + groupId + ". Message ignoré.");
+            return;
+        }
+
         int msgId = messageDao.save(m, data);
         boolean persisted = msgId != -1;
         if (!persisted) {
@@ -74,8 +83,6 @@ public class MessageService {
             messageDao.updateEtat(msgId, "DELIVERED"); // On considère délivré pour les groupes
         }
 
-        dao.GroupDao groupDao = new dao.GroupDao();
-        List<Integer> memberIds = groupDao.getGroupMemberIds(groupId);
         for (int memberId : memberIds) {
             if (memberId == m.getSenderId()) continue;
             ClientHandler receiver = ChatServer.clients.get(memberId);

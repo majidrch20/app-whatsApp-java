@@ -65,11 +65,16 @@ public class Contactservice {
             for (String mId : memberIdsStr) {
                 mId = mId.trim();
                 if (mId.isEmpty()) continue;
-                try { 
-                    memberIds.add(Integer.parseInt(mId)); 
-                } catch (NumberFormatException ignored) {
-                    User u = userDao.searchByPhone(normalizePhone(mId));
-                    if (u != null) memberIds.add(u.getId());
+                
+                // Chercher d'abord par téléphone car l'UI envoie des numéros de téléphone
+                User u = userDao.searchByPhone(normalizePhone(mId));
+                if (u != null) {
+                    memberIds.add(u.getId());
+                } else {
+                    // Fallback : essayer de parser comme ID
+                    try {
+                        memberIds.add(Integer.parseInt(mId));
+                    } catch (NumberFormatException ignored) {}
                 }
             }
             dao.GroupDao groupDao = new dao.GroupDao();
@@ -79,6 +84,52 @@ public class Contactservice {
                 handleGet(userId, handler);
             } else {
                 sendResponse(handler, "CREATE_GROUP_FAIL");
+            }
+        } else if (payload.startsWith("ADD_GROUP_MEMBER:")) {
+            String[] parts = payload.substring(17).split(":");
+            if (parts.length >= 2) {
+                int groupId = Integer.parseInt(parts[0]);
+                String targetPhone = normalizePhone(parts[1]);
+                User targetUser = userDao.searchByPhone(targetPhone);
+                if (targetUser != null) {
+                    dao.GroupDao groupDao = new dao.GroupDao();
+                    if (groupDao.addMemberToGroup(groupId, targetUser.getId())) {
+                        sendResponse(handler, "ADD_MEMBER_OK");
+                        // Renvoyer les contacts mis à jour à l'expéditeur
+                        handleGet(userId, handler);
+                        // Renvoyer les contacts mis à jour au nouvel ajouté
+                        ClientHandler targetHandler = ChatServer.clients.get(targetUser.getId());
+                        if (targetHandler != null) {
+                            handleGet(targetUser.getId(), targetHandler);
+                        }
+                    } else {
+                        sendResponse(handler, "ADD_MEMBER_FAIL");
+                    }
+                } else {
+                    sendResponse(handler, "ADD_MEMBER_FAIL:NOT_FOUND");
+                }
+            }
+        } else if (payload.startsWith("REMOVE_GROUP_MEMBER:")) {
+            String[] parts = payload.substring(20).split(":");
+            if (parts.length >= 2) {
+                int groupId = Integer.parseInt(parts[0]);
+                String targetPhone = normalizePhone(parts[1]);
+                User targetUser = userDao.searchByPhone(targetPhone);
+                if (targetUser != null) {
+                    dao.GroupDao groupDao = new dao.GroupDao();
+                    if (groupDao.removeMemberFromGroup(groupId, targetUser.getId())) {
+                        sendResponse(handler, "REMOVE_MEMBER_OK");
+                        handleGet(userId, handler);
+                        ClientHandler targetHandler = ChatServer.clients.get(targetUser.getId());
+                        if (targetHandler != null) {
+                            handleGet(targetUser.getId(), targetHandler);
+                        }
+                    } else {
+                        sendResponse(handler, "REMOVE_MEMBER_FAIL");
+                    }
+                } else {
+                    sendResponse(handler, "REMOVE_MEMBER_FAIL:NOT_FOUND");
+                }
             }
         }
     }

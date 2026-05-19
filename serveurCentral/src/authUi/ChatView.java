@@ -36,6 +36,7 @@ public class ChatView {
     private ConversationView activeConversation;
     private String activeContactPhone;
     private CallView activeCallView; // Added for A/V routing
+    private GroupCallView activeGroupCallView;
 
     private final Map<String, ConversationView> conversationCache = new HashMap<>();
 
@@ -173,6 +174,18 @@ public class ChatView {
             });
             c.setOnAudioCall(() -> startOutgoingCall(contactPhone, contactName, "audio"));
             c.setOnVideoCall(() -> startOutgoingCall(contactPhone, contactName, "video"));
+            c.setOnGroupMeeting(() -> {
+                if (contactPhone.startsWith("GROUP:")) {
+                    int gid = Integer.parseInt(contactPhone.substring(6));
+                    startGroupCall(gid, contactName, true);
+                }
+            });
+            c.setOnGroupAudioCall(() -> {
+                if (contactPhone.startsWith("GROUP:")) {
+                    int gid = Integer.parseInt(contactPhone.substring(6));
+                    startGroupCall(gid, contactName, false);
+                }
+            });
             return c;
         });
         activeConversation = conv;
@@ -181,9 +194,7 @@ public class ChatView {
 
     private void startOutgoingCall(String targetPhone, String targetName, String type) {
         if (activeCallView != null) return;
-        
         SocketManager.getInstance().sendBinary("CALL_SIGNAL", targetPhone, "", ("CALL_REQUEST:" + type.toUpperCase() + ":" + targetPhone).getBytes(StandardCharsets.UTF_8));
-        
         activeCallView = new CallView(targetName, targetPhone, type, false, null, () -> {
             SocketManager.getInstance().sendBinary("CALL_SIGNAL", targetPhone, "", ("CALL_END:" + targetPhone).getBytes(StandardCharsets.UTF_8));
             activeCallView = null;
@@ -191,8 +202,21 @@ public class ChatView {
         activeCallView.start(new Stage());
     }
 
+    /** Démarre un appel de groupe (audio ou vidéo) et envoie le signal au serveur. */
+    private void startGroupCall(int groupId, String groupName, boolean isVideo) {
+        if (activeGroupCallView != null) return; // Déjà dans un appel
+        String callMode = isVideo ? "video" : "audio";
+        // Notifier le serveur pour ouvrir la salle et inviter les membres
+        SocketManager.getInstance().sendBinary("CALL_SIGNAL", "", "",
+            ("GROUP_CALL_START:" + groupId + ":" + callMode).getBytes(StandardCharsets.UTF_8));
+        // Ouvrir la vue locale
+        activeGroupCallView = new GroupCallView(groupId, groupName, isVideo, () -> activeGroupCallView = null);
+        activeGroupCallView.start(new Stage());
+    }
+
+
     private void startBinaryListener(ContactView contactView) {
-        SocketManager.getInstance().startListening(new SocketManager.MessageListener() {
+        SocketManager.MessageListener listener = new SocketManager.MessageListener() {
             @Override
             public void onMessage(String type, String sender, String filename, byte[] data) {
                 switch (type) {
@@ -231,6 +255,18 @@ public class ChatView {
                                     });
                                     c.setOnAudioCall(() -> startOutgoingCall(finalSenderForUi, finalSenderForUi, "audio"));
                                     c.setOnVideoCall(() -> startOutgoingCall(finalSenderForUi, finalSenderForUi, "video"));
+                                    c.setOnGroupMeeting(() -> {
+                                        if (finalSenderForUi.startsWith("GROUP:")) {
+                                            int gid = Integer.parseInt(finalSenderForUi.substring(6));
+                                            startGroupCall(gid, "Groupe", true);
+                                        }
+                                    });
+                                    c.setOnGroupAudioCall(() -> {
+                                        if (finalSenderForUi.startsWith("GROUP:")) {
+                                            int gid = Integer.parseInt(finalSenderForUi.substring(6));
+                                            startGroupCall(gid, "Groupe", false);
+                                        }
+                                    });
                                     return c;
                                 });
                             }
@@ -248,13 +284,24 @@ public class ChatView {
                         String callPayload = new String(data, StandardCharsets.UTF_8);
                         Platform.runLater(() -> handleCallSignal(callPayload, sender));
                         break;
-                        
                     case "CALL_AUDIO":
                         if (activeCallView != null) {
                             activeCallView.receiveAudio(data);
                         }
                         break;
                         
+                    case "UDP_AUDIO":
+                        if (activeGroupCallView != null) {
+                            activeGroupCallView.receiveAudio(sender, data);
+                        }
+                        break;
+                        
+                    case "UDP_VIDEO":
+                        if (activeGroupCallView != null) {
+                            activeGroupCallView.receiveVideo(sender, data);
+                        }
+                        break;
+
                     case "CALL_VIDEO":
                         if (activeCallView != null) {
                             activeCallView.receiveVideo(data);
@@ -271,10 +318,43 @@ public class ChatView {
                     logout();
                 });
             }
-        });
+        };
+        SocketManager.getInstance().startListening(listener);
+        SocketManager.getInstance().initUdp("127.0.0.1", 5001, listener);
     }
 
     private void handleCallSignal(String payload, String sender) {
+        if (payload.startsWith("GROUP_CALL_INCOMING:")) {
+            String[] parts = payload.split(":");
+            if (parts.length >= 3) {
+                int groupId = Integer.parseInt(parts[1]);
+                String starterPhone = parts[2];
+                Alert alert = new Alert(Alert.AlertType.CONFIRMATION, "Le contact " + starterPhone + " a démarré une réunion de groupe. Voulez-vous la rejoindre ?", javafx.scene.control.ButtonType.YES, javafx.scene.control.ButtonType.NO);
+                alert.setTitle("Réunion de Groupe");
+                alert.showAndWait().ifPresent(response -> {
+                    if (response == javafx.scene.control.ButtonType.YES) {
+                        boolean isVideo = parts.length >= 4 && "video".equals(parts[3]);
+                        SocketManager.getInstance().sendBinary("CALL_SIGNAL", "", "", ("GROUP_CALL_JOIN:" + groupId).getBytes(StandardCharsets.UTF_8));
+                        startGroupCall(groupId, "Groupe", isVideo);
+                    }
+                });
+            }
+            return;
+        }
+        
+        if (payload.startsWith("GROUP_CALL_JOINED:")) {
+            showToast("Un membre a rejoint la réunion.");
+            return;
+        }
+        
+        if (payload.startsWith("GROUP_CALL_LEFT:")) {
+            String[] parts = payload.split(":");
+            if (parts.length >= 3 && activeGroupCallView != null) {
+                activeGroupCallView.removeParticipant(parts[2]);
+            }
+            return;
+        }
+
         if (payload.startsWith("CALL_INCOMING:") || payload.startsWith("CALL_REQUEST:")) {
             String[] parts = payload.split(":");
             String callType = parts.length >= 2 ? parts[1].toLowerCase() : "audio";

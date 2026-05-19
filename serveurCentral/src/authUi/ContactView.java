@@ -69,6 +69,32 @@ public class ContactView {
                 return;
             }
 
+            if (payload.equals("ADD_MEMBER_OK") || payload.equals("REMOVE_MEMBER_OK")) {
+                javafx.application.Platform.runLater(() -> {
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
+                    alert.setTitle("Succès");
+                    alert.setHeaderText(null);
+                    alert.setContentText(payload.contains("ADD") ? "Membre ajouté avec succès." : "Membre retiré avec succès.");
+                    alert.showAndWait();
+                });
+                return;
+            }
+
+            if (payload.startsWith("ADD_MEMBER_FAIL") || payload.startsWith("REMOVE_MEMBER_FAIL")) {
+                javafx.application.Platform.runLater(() -> {
+                    javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.ERROR);
+                    alert.setTitle("Erreur");
+                    alert.setHeaderText(null);
+                    if (payload.contains("NOT_FOUND")) {
+                        alert.setContentText("Ce numéro n'existe pas dans la base de données !");
+                    } else {
+                        alert.setContentText("Impossible d'effectuer cette opération.");
+                    }
+                    alert.showAndWait();
+                });
+                return;
+            }
+
             if (payload.startsWith("STATUS:")) {
                 String[] parts = payload.substring(7).split(":"); // phone:ONLINE|
                 if (parts.length >= 2) {

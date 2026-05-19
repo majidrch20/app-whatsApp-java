@@ -287,6 +287,19 @@ public class ClientHandler extends Thread {
                     case "CALL_END":
                         callService.handleEnd(userId, userPhone, otherPhone);
                         break;
+                    case "GROUP_CALL_START": {
+                        // Format: GROUP_CALL_START:groupId:callType
+                        int groupId = Integer.parseInt(parts[1]);
+                        String mode = parts.length >= 3 ? parts[2] : "audio";
+                        service.MeetingService.getInstance().startMeeting(groupId, userId, userPhone, mode);
+                        break;
+                    }
+                    case "GROUP_CALL_JOIN":
+                        service.MeetingService.getInstance().joinMeeting(Integer.parseInt(parts[1]), userId, userPhone);
+                        break;
+                    case "GROUP_CALL_LEAVE":
+                        service.MeetingService.getInstance().leaveMeeting(Integer.parseInt(parts[1]), userId, userPhone);
+                        break;
                     default:
                         System.err.println("[Call] Signal inconnu : " + signal);
                 }
@@ -295,6 +308,23 @@ public class ClientHandler extends Thread {
 
             case "CALL_AUDIO":
             case "CALL_VIDEO": {
+                if (receiverPhone != null && receiverPhone.startsWith("GROUP:")) {
+                    int groupId = Integer.parseInt(receiverPhone.substring(6));
+                    java.util.Set<Integer> participants = service.MeetingService.getInstance().getActiveParticipants(groupId);
+                    for (int pId : participants) {
+                        if (pId == userId) continue;
+                        ClientHandler receiver = ChatServer.clients.get(pId);
+                        if (receiver != null) {
+                            try {
+                                receiver.send(type, "GROUP:" + groupId + ":" + userPhone, filename, data);
+                            } catch (IOException e) {
+                                System.err.println("[Call] Erreur multicast " + type + " : " + e.getMessage());
+                            }
+                        }
+                    }
+                    break;
+                }
+
                 User receiverUser = userDao.searchByPhone(receiverPhone);
                 if (receiverUser == null) {
                     return;

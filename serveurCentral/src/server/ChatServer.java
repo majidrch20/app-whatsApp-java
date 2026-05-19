@@ -19,8 +19,9 @@ public class ChatServer {
 
     public static void main(String[] args) throws Exception {
         SmsApiServer.start();
+        new UdpServer().start();
         ServerSocket serverSocket = new ServerSocket(5000);
-        System.out.println("[ChatServer] Démarré sur le port 5000");
+        System.out.println("[ChatServer] Démarré sur le port 5000 (TCP)");
 
         while (true) {
             Socket socket = serverSocket.accept();
