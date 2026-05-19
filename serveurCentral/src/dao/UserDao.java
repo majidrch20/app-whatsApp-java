@@ -35,9 +35,6 @@ public class UserDao {
         }
     }
 
-    // ─────────────────────────────
-    // VERIFY CODE (FIX IMPORTANT)
-    // ─────────────────────────────
     public boolean verifyCode(String phone, String code) {
         User existing = searchByPhone(phone);
         if (existing == null) return false;
@@ -56,9 +53,6 @@ public class UserDao {
         return false;
     }
 
-    // ─────────────────────────────
-    // CLEAR CODE AFTER SUCCESS (IMPORTANT)
-    // ─────────────────────────────
     public void clearVerificationCode(String phone) {
         User existing = searchByPhone(phone);
         if (existing != null) {
@@ -73,9 +67,6 @@ public class UserDao {
         }
     }
 
-    // ─────────────────────────────
-    // VERIFY + SET USER
-    // ─────────────────────────────
     public void markVerifiedAndSetUsername(String phone, String username) {
         User existing = searchByPhone(phone);
         if (existing != null) {
@@ -91,40 +82,58 @@ public class UserDao {
         }
     }
 
-    // ─────────────────────────────
     public void updateStatusById(int userId, String status) {
-
         String sql = "UPDATE users SET status = ? WHERE id = ?";
-
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-
             ps.setString(1, status);
             ps.setInt(2, userId);
             ps.executeUpdate();
-
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // ─────────────────────────────
     public int getIdByPhone(String phone) {
         User u = searchByPhone(phone);
         if (u != null) return u.getId();
         return -1;
     }
 
-    // ─────────────────────────────
     public User getByPhone(String phone) {
         return searchByPhone(phone);
     }
 
     public User searchByPhone(String phone) {
         if (phone == null || phone.trim().isEmpty()) return null;
-        String trimmed = phone.trim();
-        User exact = getByPhone(trimmed);
-        if (exact != null) return exact;
+        // 1. Recherche exacte d'abord
+        String exactSql = "SELECT * FROM users WHERE phone = ?";
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(exactSql)) {
+            ps.setString(1, phone);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return new User(
+                            rs.getInt("id"),
+                            rs.getString("phone"),
+                            rs.getString("username"),
+                            rs.getString("verification_code"),
+                            rs.getBoolean("verified"),
+                            rs.getString("status")
+                    );
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // 2. Recherche floue par les 9 derniers chiffres
+        String targetDigits = normalizeDigits(phone);
+        if (targetDigits.isEmpty()) return null;
+
+        String targetLast9 = targetDigits.length() >= 9 
+                ? targetDigits.substring(targetDigits.length() - 9) 
+                : targetDigits;
 
         String sql = "SELECT * FROM users";
         try (Connection conn = DBConnection.getConnection();
@@ -133,7 +142,12 @@ public class UserDao {
 
             while (rs.next()) {
                 String dbPhone = rs.getString("phone");
-                if (isSamePhone(trimmed, dbPhone)) {
+                String dbDigits = normalizeDigits(dbPhone);
+                if (dbDigits.isEmpty()) continue;
+                String dbLast9 = dbDigits.length() >= 9 
+                        ? dbDigits.substring(dbDigits.length() - 9) 
+                        : dbDigits;
+                if (dbLast9.equals(targetLast9)) {
                     return new User(
                             rs.getInt("id"),
                             dbPhone,
@@ -150,17 +164,8 @@ public class UserDao {
         return null;
     }
 
-    private boolean isSamePhone(String p1, String p2) {
-        if (p1 == null || p2 == null) return false;
-        String d1 = p1.replaceAll("[^0-9]", "");
-        String d2 = p2.replaceAll("[^0-9]", "");
-        if (d1.equals(d2)) return true;
-        
-        int len1 = d1.length();
-        int len2 = d2.length();
-        if (len1 >= 9 && len2 >= 9) {
-            return d1.substring(len1 - 9).equals(d2.substring(len2 - 9));
-        }
-        return false;
+    private String normalizeDigits(String input) {
+        if (input == null) return "";
+        return input.replaceAll("[^0-9]", "");
     }
 }
