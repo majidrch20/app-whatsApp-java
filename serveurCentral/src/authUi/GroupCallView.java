@@ -11,8 +11,10 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.image.ImageView;
 import javafx.scene.image.WritableImage;
-import javafx.scene.layout.FlowPane;
 import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
 import javafx.scene.paint.Color;
 import javafx.stage.Stage;
 
@@ -33,8 +35,9 @@ public class GroupCallView {
     private final Runnable onLeave;
 
     private Stage stage;
-    private FlowPane videoGrid;
+    private StackPane videoContainer;
     private Label statusLbl;
+    private VBox localBox;
 
     // Hardware
     private Webcam webcam;
@@ -71,18 +74,16 @@ public class GroupCallView {
         statusLbl = new Label("En ligne");
         statusLbl.setStyle("-fx-text-fill: #25D366;");
 
-        videoGrid = new FlowPane(10, 10);
-        videoGrid.setAlignment(Pos.CENTER);
-        videoGrid.setPrefWrapLength(600);
+        videoContainer = new StackPane();
+        videoContainer.setAlignment(Pos.CENTER);
         if (!isVideoEnabled) {
-            videoGrid.setVisible(false);
-            videoGrid.setManaged(false);
-            // On peut ajouter une icône de micro à la place
+            videoContainer.setVisible(false);
+            videoContainer.setManaged(false);
             Label audioIcon = new Label("🎙️");
             audioIcon.setStyle("-fx-text-fill: gray; -fx-font-size: 80px;");
             root.getChildren().addAll(title, statusLbl, audioIcon);
         } else {
-            root.getChildren().addAll(title, statusLbl, videoGrid);
+            root.getChildren().addAll(title, statusLbl, videoContainer);
         }
 
         Button btnLeave = new Button("Quitter la réunion");
@@ -141,14 +142,14 @@ public class GroupCallView {
                     localView.setFitHeight(150);
                     localView.setPreserveRatio(true);
                     
-                    VBox localBox = new VBox(5);
+                    localBox = new VBox(5);
                     localBox.setAlignment(Pos.CENTER);
                     localBox.setStyle("-fx-background-color: #2b3930; -fx-padding: 10px; -fx-background-radius: 8px;");
                     Label localLbl = new Label("Moi");
                     localLbl.setStyle("-fx-text-fill: white; -fx-font-weight: bold;");
                     localBox.getChildren().addAll(localView, localLbl);
                     
-                    Platform.runLater(() -> videoGrid.getChildren().add(localBox));
+                    Platform.runLater(() -> updateVideoLayout());
 
                     while (isActive) {
                         BufferedImage image = webcam.getImage();
@@ -168,6 +169,56 @@ public class GroupCallView {
                 }
             }).start();
         }
+    }
+
+    private void updateVideoLayout() {
+        if (!isVideoEnabled) return;
+        
+        Platform.runLater(() -> {
+            videoContainer.getChildren().clear();
+            
+            int remoteCount = participantBoxes.size();
+            
+            if (remoteCount == 0) {
+                HBox hbox = new HBox(15);
+                hbox.setAlignment(Pos.CENTER);
+                if (localBox != null) {
+                    hbox.getChildren().add(localBox);
+                }
+                videoContainer.getChildren().add(hbox);
+                
+            } else if (remoteCount == 1) {
+                HBox hbox = new HBox(20);
+                hbox.setAlignment(Pos.CENTER);
+                if (localBox != null) {
+                    hbox.getChildren().add(localBox);
+                }
+                for (VBox rBox : participantBoxes.values()) {
+                    hbox.getChildren().add(rBox);
+                }
+                videoContainer.getChildren().add(hbox);
+                
+            } else {
+                GridPane grid = new GridPane();
+                grid.setAlignment(Pos.CENTER);
+                grid.setHgap(15);
+                grid.setVgap(15);
+                
+                java.util.List<VBox> allBoxes = new java.util.ArrayList<>();
+                if (localBox != null) {
+                    allBoxes.add(localBox);
+                }
+                allBoxes.addAll(participantBoxes.values());
+                
+                int cols = (int) Math.ceil(Math.sqrt(allBoxes.size()));
+                for (int i = 0; i < allBoxes.size(); i++) {
+                    int row = i / cols;
+                    int col = i % cols;
+                    grid.add(allBoxes.get(i), col, row);
+                }
+                videoContainer.getChildren().add(grid);
+            }
+        });
     }
 
     public void receiveAudio(String senderPhone, byte[] data) {
@@ -217,7 +268,7 @@ public class GroupCallView {
                     
                     participantVideos.put(senderPhone, newView);
                     participantBoxes.put(senderPhone, box);
-                    Platform.runLater(() -> videoGrid.getChildren().add(box));
+                    Platform.runLater(() -> updateVideoLayout());
                     view = newView;
                 }
                 
@@ -229,10 +280,8 @@ public class GroupCallView {
 
     public void removeParticipant(String senderPhone) {
         participantVideos.remove(senderPhone);
-        VBox box = participantBoxes.remove(senderPhone);
-        if (box != null) {
-            Platform.runLater(() -> videoGrid.getChildren().remove(box));
-        }
+        participantBoxes.remove(senderPhone);
+        Platform.runLater(() -> updateVideoLayout());
         SourceDataLine line = participantAudios.remove(senderPhone);
         if (line != null) {
             line.stop();
