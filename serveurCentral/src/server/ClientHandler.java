@@ -58,9 +58,8 @@ public class ClientHandler extends Thread {
                 return;
             }
 
-            // Note : On ne livre pas les messages ici car le client les charge 
-            // directement depuis la base de données via loadHistory()
-            // msgService.deliverOfflineMessages(userId, userPhone, this);
+            // Livrer les messages hors-ligne à la connexion
+            msgService.deliverOfflineMessages(userId, userPhone, this);
 
 
             // Boucle principale
@@ -366,7 +365,7 @@ public class ClientHandler extends Thread {
     /**
      * ✅ FIX : envoi binaire (phase CHAT) — binOut toujours initialisé
      */
-    public synchronized void send(String type, String senderPhone,
+    public synchronized void send(String type, String senderPhone, String msgIdStr,
                                   String filename, byte[] data) throws IOException {
         if (binOut == null) {
             System.err.println("[Server] binOut null pour " + tag());
@@ -374,11 +373,16 @@ public class ClientHandler extends Thread {
         }
         binOut.writeUTF(type);
         binOut.writeUTF(senderPhone != null ? senderPhone : "");
-        binOut.writeUTF("");                          // receiverPhone (non utilisé côté client)
+        binOut.writeUTF(msgIdStr != null ? msgIdStr : "");
         binOut.writeUTF(filename != null ? filename : "");
         binOut.writeInt(data != null ? data.length : 0);
         if (data != null && data.length > 0) binOut.write(data);
         binOut.flush();
+    }
+
+    public synchronized void send(String type, String senderPhone,
+                                  String filename, byte[] data) throws IOException {
+        send(type, senderPhone, "", filename, data);
     }
 
     // ── DISCONNECT ────────────────────────────────────────────────────────────

@@ -44,6 +44,7 @@ public class MessageService {
                         : data;
                 receiver.send(m.getType(),
                         m.getSenderPhone(),
+                        String.valueOf(msgId),
                         m.getFilename() != null ? m.getFilename() : "",
                         toSend);
                 if (persisted) {
@@ -92,7 +93,7 @@ public class MessageService {
                     // Format: type, senderPhone, filename, data
                     // senderPhone is sent as "GROUP:groupId:senderPhone" so client knows it's a group
                     String senderInfo = "GROUP:" + groupId + ":" + m.getSenderPhone();
-                    receiver.send(m.getType(), senderInfo, m.getFilename() != null ? m.getFilename() : "", toSend);
+                    receiver.send(m.getType(), senderInfo, String.valueOf(msgId), m.getFilename() != null ? m.getFilename() : "", toSend);
                 } catch (Exception e) {}
             }
         }
@@ -118,7 +119,7 @@ public class MessageService {
                 } else {
                     data = messageDao.getDataById(m.getId());
                 }
-                handler.send(m.getType(), m.getSenderPhone(),
+                handler.send(m.getType(), m.getSenderPhone(), String.valueOf(m.getId()),
                         m.getFilename() != null ? m.getFilename() : "", data);
                 messageDao.updateEtat(m.getId(), "DELIVERED");
             } catch (IOException e) {
@@ -128,23 +129,27 @@ public class MessageService {
         }
     }
 
+    private boolean isSamePhone(String p1, String p2) {
+        if (p1 == null || p2 == null) return false;
+        String d1 = p1.replaceAll("[^0-9]", "");
+        String d2 = p2.replaceAll("[^0-9]", "");
+        if (d1.equals(d2)) return true;
+        
+        int len1 = d1.length();
+        int len2 = d2.length();
+        if (len1 >= 9 && len2 >= 9) {
+            return d1.substring(len1 - 9).equals(d2.substring(len2 - 9));
+        }
+        return false;
+    }
+
     private ClientHandler findOnlineByPhone(String phone) {
-        String target = normalizePhone(phone);
+        if (phone == null || phone.trim().isEmpty()) return null;
         for (ClientHandler handler : ChatServer.clients.values()) {
-            String connectedPhone = normalizePhone(handler.getUserPhone());
-            if (!connectedPhone.isEmpty() && connectedPhone.equals(target)) {
+            if (isSamePhone(phone, handler.getUserPhone())) {
                 return handler;
             }
         }
         return null;
-    }
-
-    private String normalizePhone(String input) {
-        if (input == null) return "";
-        String normalized = input.replaceAll("[\\s\\-()]", "");
-        if (normalized.startsWith("00")) {
-            normalized = "+" + normalized.substring(2);
-        }
-        return normalized.trim();
     }
 }

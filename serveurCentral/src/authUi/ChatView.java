@@ -218,7 +218,7 @@ public class ChatView {
     private void startBinaryListener(ContactView contactView) {
         SocketManager.MessageListener listener = new SocketManager.MessageListener() {
             @Override
-            public void onMessage(String type, String sender, String filename, byte[] data) {
+            public void onMessage(String type, String sender, String msgIdStr, String filename, byte[] data) {
                 switch (type) {
                     case "CONTACT_SIGNAL":
                         String payload = new String(data, StandardCharsets.UTF_8);
@@ -271,7 +271,13 @@ public class ChatView {
                                 });
                             }
                             if (cachedConv != null) {
-                                cachedConv.receiveMessage(type, filename, data, realSender);
+                                int msgId = -1;
+                                try {
+                                    if (msgIdStr != null && !msgIdStr.isEmpty()) {
+                                        msgId = Integer.parseInt(msgIdStr);
+                                    }
+                                } catch (NumberFormatException ignored) {}
+                                cachedConv.receiveMessage(type, filename, data, realSender, msgId);
                             }
                             if (normalizedSender == null || !normalizedSender.equals(activeContactPhone) || activeConversation == null) {
                                 String msgText = "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : "📎 " + (filename != null ? filename : type);
@@ -320,7 +326,11 @@ public class ChatView {
             }
         };
         SocketManager.getInstance().startListening(listener);
-        SocketManager.getInstance().initUdp("127.0.0.1", 5001, listener);
+        String serverIp = "127.0.0.1";
+        if (network != null && network.getSocket() != null && network.getSocket().getInetAddress() != null) {
+            serverIp = network.getSocket().getInetAddress().getHostAddress();
+        }
+        SocketManager.getInstance().initUdp(serverIp, 5001, listener);
     }
 
     private void handleCallSignal(String payload, String sender) {
@@ -466,7 +476,7 @@ public class ChatView {
         SessionManager.clearSession();
         SocketManager.reset();
         stage.close();
-        NetworkClient freshNetwork = new NetworkClient("localhost", 5000);
+        NetworkClient freshNetwork = new NetworkClient("100.104.161.251", 5000);
         new PhoneView(new AuthService(freshNetwork), freshNetwork).start(new Stage());
     }
 

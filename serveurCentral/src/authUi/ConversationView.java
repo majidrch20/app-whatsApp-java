@@ -55,6 +55,7 @@ public class ConversationView {
 
     private final MessageDao messageDao = new MessageDao();
     private final UserDao userDao = new UserDao();
+    private final java.util.Set<Integer> displayedMessageIds = new java.util.HashSet<>();
     
     private boolean isGroup = false;
     private int groupId = -1;
@@ -397,8 +398,12 @@ public class ConversationView {
     }
 
     public void receiveMessage(String type, String filename, byte[] data, String realSender) {
+        receiveMessage(type, filename, data, realSender, -1);
+    }
+
+    public void receiveMessage(String type, String filename, byte[] data, String realSender, int msgId) {
         Platform.runLater(() -> {
-            Message m = new Message(-1, contactId, realSender != null ? realSender : contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
+            Message m = new Message(msgId, contactId, realSender != null ? realSender : contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
             if ("text".equals(type)) {
                 addMessageBubble(m, false);
             } else if ("audio".equals(type)) {
@@ -458,6 +463,10 @@ public class ConversationView {
     }
 
     private void addAudioBubble(File audioFile, Message m, boolean mine) {
+        if (m != null && m.getId() != -1) {
+            if (displayedMessageIds.contains(m.getId())) return;
+            displayedMessageIds.add(m.getId());
+        }
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -504,6 +513,10 @@ public class ConversationView {
     }
 
     private void addFileBubble(File localFile, String filename, String type, Message m, boolean mine) {
+        if (m != null && m.getId() != -1) {
+            if (displayedMessageIds.contains(m.getId())) return;
+            displayedMessageIds.add(m.getId());
+        }
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -595,6 +608,10 @@ public class ConversationView {
     }
 
     private void addMessageBubble(Message m, boolean mine) {
+        if (m != null && m.getId() != -1) {
+            if (displayedMessageIds.contains(m.getId())) return;
+            displayedMessageIds.add(m.getId());
+        }
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 

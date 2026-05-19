@@ -58,12 +58,12 @@ public class SocketManager {
                 while (true) {
                     String type     = binIn.readUTF();
                     String sender   = binIn.readUTF();
-                    String ignored  = binIn.readUTF(); // ✅ receiverPhone (ignoré)
+                    String msgIdStr = binIn.readUTF(); // ✅ On récupère le msgId au lieu de l'ignorer
                     String filename = binIn.readUTF(); // ✅ filename correct
                     int size        = binIn.readInt();
                     byte[] data     = new byte[size];
                     binIn.readFully(data);
-                    listener.onMessage(type, sender, filename, data);
+                    listener.onMessage(type, sender, msgIdStr, filename, data);
                 }
             } catch (Exception e) {
                 listener.onDisconnect();
@@ -72,7 +72,7 @@ public class SocketManager {
     }
 
     public interface MessageListener {
-        void onMessage(String type, String sender, String filename, byte[] data);
+        void onMessage(String type, String sender, String msgIdStr, String filename, byte[] data);
         void onDisconnect();
     }
 
@@ -109,7 +109,7 @@ public class SocketManager {
 
                         String strType = (type == 2) ? "UDP_AUDIO" : "UDP_VIDEO";
                         if (listener != null) {
-                            listener.onMessage(strType, senderPhone, "", mediaData);
+                            listener.onMessage(strType, senderPhone, "", "", mediaData);
                         }
                     } catch (Exception e) {
                         break;
