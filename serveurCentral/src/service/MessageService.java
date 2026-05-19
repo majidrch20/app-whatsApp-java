@@ -32,7 +32,6 @@ public class MessageService {
             System.err.println("[MessageService] Tentative de livraison temps réel...");
         }
 
-
         // Livraison si connecté
         ClientHandler receiver = ChatServer.clients.get(m.getReceiverId());
         if (receiver == null && receiverPhone != null && !receiverPhone.isBlank()) {
@@ -62,6 +61,32 @@ public class MessageService {
                         + "message sauvegardé (id=" + msgId + ")");
             } else {
                 System.err.println("[MessageService] Destinataire hors ligne et sauvegarde échouée, message perdu.");
+            }
+        }
+    }
+
+    public void processGroupMessage(Message m, int groupId, byte[] data) {
+        int msgId = messageDao.save(m, data);
+        boolean persisted = msgId != -1;
+        if (!persisted) {
+            System.err.println("[MessageService] Erreur DB pour groupe " + groupId);
+        } else {
+            messageDao.updateEtat(msgId, "DELIVERED"); // On considère délivré pour les groupes
+        }
+
+        dao.GroupDao groupDao = new dao.GroupDao();
+        List<Integer> memberIds = groupDao.getGroupMemberIds(groupId);
+        for (int memberId : memberIds) {
+            if (memberId == m.getSenderId()) continue;
+            ClientHandler receiver = ChatServer.clients.get(memberId);
+            if (receiver != null) {
+                try {
+                    byte[] toSend = m.isText() ? m.getContent().getBytes(java.nio.charset.StandardCharsets.UTF_8) : data;
+                    // Format: type, senderPhone, filename, data
+                    // senderPhone is sent as "GROUP:groupId:senderPhone" so client knows it's a group
+                    String senderInfo = "GROUP:" + groupId + ":" + m.getSenderPhone();
+                    receiver.send(m.getType(), senderInfo, m.getFilename() != null ? m.getFilename() : "", toSend);
+                } catch (Exception e) {}
             }
         }
     }

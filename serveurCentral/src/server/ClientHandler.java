@@ -226,6 +226,20 @@ public class ClientHandler extends Thread {
             case "video":
             case "image":
             case "file": {
+                if (receiverPhone.startsWith("GROUP:")) {
+                    int groupId = Integer.parseInt(receiverPhone.substring(6));
+                    Message m;
+                    if ("text".equals(type)) {
+                        String content = new String(data, StandardCharsets.UTF_8);
+                        m = Message.text(userId, userPhone, -1, content);
+                    } else {
+                        m = Message.binary(userId, userPhone, -1, type, filename);
+                    }
+                    m.setGroupId(groupId);
+                    msgService.processGroupMessage(m, groupId, data);
+                    break;
+                }
+
                 User receiverUser = userDao.searchByPhone(receiverPhone);
                 if (receiverUser == null) {
                     System.err.println("[Server] Phone inconnu : " + receiverPhone);

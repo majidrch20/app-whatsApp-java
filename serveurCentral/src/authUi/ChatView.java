@@ -102,11 +102,15 @@ public class ChatView {
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
+        Button btnAddGroup = new Button("👥");
+        btnAddGroup.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 20px; -fx-cursor: hand;");
+        btnAddGroup.setOnAction(e -> createGroup());
+
         Button btnAdd = new Button("+");
         btnAdd.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 22px; -fx-font-weight: bold;");
         btnAdd.setOnAction(e -> addContact());
 
-        header.getChildren().addAll(avatar, nameBox, spacer, btnAdd);
+        header.getChildren().addAll(avatar, nameBox, spacer, btnAddGroup, btnAdd);
 
         // Search Bar
         TextField searchField = new TextField();
@@ -203,28 +207,39 @@ public class ChatView {
                     case "image":
                     case "file":
                         Platform.runLater(() -> {
-                            String normalizedSender = normalizePhone(sender);
+                            String actualSenderStr = sender;
+                            String senderForUi = sender;
+                            String realSender = sender;
+                            if (sender != null && sender.startsWith("GROUP:")) {
+                                String[] parts = sender.split(":");
+                                if (parts.length >= 3) {
+                                    senderForUi = "GROUP:" + parts[1];
+                                    realSender = parts[2];
+                                }
+                            }
+                            
+                            String normalizedSender = normalizePhone(senderForUi);
                             ConversationView cachedConv = conversationCache.get(normalizedSender);
                             if (cachedConv == null && normalizedSender != null && !normalizedSender.isBlank()) {
-                                String senderForUi = sender;
+                                String finalSenderForUi = senderForUi;
                                 cachedConv = conversationCache.computeIfAbsent(normalizedSender, k -> {
-                                    ConversationView c = new ConversationView(userId, phone, sender, sender, "ONLINE");
+                                    ConversationView c = new ConversationView(userId, phone, finalSenderForUi, finalSenderForUi, "ONLINE");
                                     c.setOnBack(() -> {
                                         activeContactPhone = null;
                                         activeConversation = null;
                                         showWelcomeScreen();
                                     });
-                                    c.setOnAudioCall(() -> startOutgoingCall(senderForUi, senderForUi, "audio"));
-                                    c.setOnVideoCall(() -> startOutgoingCall(senderForUi, senderForUi, "video"));
+                                    c.setOnAudioCall(() -> startOutgoingCall(finalSenderForUi, finalSenderForUi, "audio"));
+                                    c.setOnVideoCall(() -> startOutgoingCall(finalSenderForUi, finalSenderForUi, "video"));
                                     return c;
                                 });
                             }
                             if (cachedConv != null) {
-                                cachedConv.receiveMessage(type, filename, data);
+                                cachedConv.receiveMessage(type, filename, data, realSender);
                             }
                             if (normalizedSender == null || !normalizedSender.equals(activeContactPhone) || activeConversation == null) {
                                 String msgText = "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : "📎 " + (filename != null ? filename : type);
-                                showNotification(sender, msgText);
+                                showNotification(realSender, msgText);
                             }
                         });
                         break;
@@ -326,6 +341,35 @@ public class ChatView {
                 try { Thread.sleep(500); } catch (InterruptedException ignored) {}
                 SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", "GET_CONTACTS".getBytes(StandardCharsets.UTF_8));
             }).start();
+        }
+    }
+    
+    private void createGroup() {
+        TextInputDialog groupDialog = new TextInputDialog();
+        groupDialog.setTitle("Créer un groupe");
+        groupDialog.setHeaderText("Entrez le nom du groupe :");
+        Optional<String> groupResult = groupDialog.showAndWait();
+        if (groupResult.isPresent() && !groupResult.get().trim().isEmpty()) {
+            String groupName = groupResult.get().trim();
+            TextInputDialog membersDialog = new TextInputDialog();
+            membersDialog.setTitle("Membres du groupe");
+            membersDialog.setHeaderText("Entrez les numéros des contacts à ajouter (séparés par des virgules) :");
+            Optional<String> membersResult = membersDialog.showAndWait();
+            
+            if (membersResult.isPresent()) {
+                String members = membersResult.get().trim();
+                // To fetch their IDs we can just let the server handle it by phones...
+                // Wait! Server expects IDs: CREATE_GROUP:name:id1,id2
+                // We should change Contactservice to accept phones instead of IDs for convenience?
+                // Let's just use what I wrote in Contactservice which uses IDs. I will update Contactservice to search by phone if it fails parseInt.
+                String payload = "CREATE_GROUP:" + groupName + ":" + members;
+                SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", payload.getBytes(StandardCharsets.UTF_8));
+                
+                new Thread(() -> {
+                    try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+                    SocketManager.getInstance().sendBinary("CONTACT_SIGNAL", "", "", "GET_CONTACTS".getBytes(StandardCharsets.UTF_8));
+                }).start();
+            }
         }
     }
 

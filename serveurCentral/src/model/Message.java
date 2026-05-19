@@ -22,6 +22,7 @@ public class Message {
     private String content;
     private String etat;
     private java.sql.Timestamp sentAt;
+    private int groupId = -1;
 
     // ── Factory texte ────────────────────────────────────────────
     public static Message text(int senderId, String senderPhone,
@@ -65,6 +66,22 @@ public class Message {
         this.content     = content;
         this.etat        = etat;
         this.sentAt      = sentAt;
+        this.groupId     = -1;
+    }
+
+    public Message(int id, int senderId, String senderPhone,
+                   int receiverId, String type,
+                   String filename, String content, String etat, java.sql.Timestamp sentAt, int groupId) {
+        this.id          = id;
+        this.senderId    = senderId;
+        this.senderPhone = senderPhone;
+        this.receiverId  = receiverId;
+        this.type        = type;
+        this.filename    = filename;
+        this.content     = content;
+        this.etat        = etat;
+        this.sentAt      = sentAt;
+        this.groupId     = groupId;
     }
 
     private Message() {}
@@ -87,4 +104,6 @@ public class Message {
     public void   setEtat(String e) { this.etat = e; }
     public java.sql.Timestamp getSentAt() { return sentAt; }
     public void setSentAt(java.sql.Timestamp sentAt) { this.sentAt = sentAt; }
+    public int getGroupId() { return groupId; }
+    public void setGroupId(int groupId) { this.groupId = groupId; }
 }

@@ -57,6 +57,29 @@ public class Contactservice {
                 contactDao.removeContact(userId, target.getId());
             }
             handleGet(userId, handler); // ✅ Renvoyer la liste après suppression
+        } else if (payload.startsWith("CREATE_GROUP:")) {
+            String[] parts = payload.substring(13).split(":", 2);
+            String groupName = parts[0];
+            String[] memberIdsStr = parts.length > 1 ? parts[1].split(",") : new String[0];
+            java.util.List<Integer> memberIds = new java.util.ArrayList<>();
+            for (String mId : memberIdsStr) {
+                mId = mId.trim();
+                if (mId.isEmpty()) continue;
+                try { 
+                    memberIds.add(Integer.parseInt(mId)); 
+                } catch (NumberFormatException ignored) {
+                    User u = userDao.searchByPhone(normalizePhone(mId));
+                    if (u != null) memberIds.add(u.getId());
+                }
+            }
+            dao.GroupDao groupDao = new dao.GroupDao();
+            int groupId = groupDao.createGroup(groupName, userId, memberIds);
+            if (groupId != -1) {
+                sendResponse(handler, "CREATE_GROUP_OK");
+                handleGet(userId, handler);
+            } else {
+                sendResponse(handler, "CREATE_GROUP_FAIL");
+            }
         }
     }
 
@@ -71,8 +94,15 @@ public class Contactservice {
             String status   = ChatServer.clients.containsKey(contactId) ? "ONLINE" : "OFFLINE";
             String nickname = c[4];
             String displayName = (nickname != null && !nickname.isEmpty()) ? nickname : username;
-            sb.append(phone).append(":").append(displayName).append(":").append(status).append("|");
+            sb.append(phone).append(":").append(displayName).append(":").append(status).append(":").append(contactId).append("|");
         }
+        
+        dao.GroupDao groupDao = new dao.GroupDao();
+        List<model.Group> groups = groupDao.getGroupsForUser(userId);
+        for (model.Group g : groups) {
+            sb.append("GROUP:").append(g.getId()).append(":").append(g.getName()).append(":ONLINE:-1|");
+        }
+        
         sendResponse(handler, sb.toString());
     }
 

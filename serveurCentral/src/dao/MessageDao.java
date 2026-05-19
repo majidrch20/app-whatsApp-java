@@ -13,15 +13,19 @@ public class MessageDao {
      */
     public int save(Message m, byte[] data) {
         String sql = "INSERT INTO messages"
-                + "(sender_id, receiver_id, type, filename, content, data, etat) "
-                + "VALUES (?, ?, ?, ?, ?, ?, 'NOT_DELIVERED')";
+                + "(sender_id, receiver_id, type, filename, content, data, etat, group_id) "
+                + "VALUES (?, ?, ?, ?, ?, ?, 'NOT_DELIVERED', ?)";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(
                      sql, Statement.RETURN_GENERATED_KEYS)) {
 
             ps.setInt(1, m.getSenderId());
-            ps.setInt(2, m.getReceiverId());
+            if (m.getReceiverId() == -1) {
+                ps.setNull(2, Types.INTEGER);
+            } else {
+                ps.setInt(2, m.getReceiverId());
+            }
             ps.setString(3, m.getType());
             ps.setString(4, m.getFilename());
 
@@ -31,6 +35,12 @@ public class MessageDao {
             } else {
                 ps.setNull(5, Types.VARCHAR);
                 ps.setBytes(6, data);
+            }
+            
+            if (m.getGroupId() <= 0) {
+                ps.setNull(7, Types.INTEGER);
+            } else {
+                ps.setInt(7, m.getGroupId());
             }
 
             ps.executeUpdate();
@@ -58,7 +68,7 @@ public class MessageDao {
         if (userId1 == -1 || userId2 == -1) return list;
 
         String sql = "SELECT m.id, m.sender_id, m.receiver_id, "
-                + "m.type, m.filename, m.content, m.etat, m.sent_at, "
+                + "m.type, m.filename, m.content, m.etat, m.sent_at, m.group_id, "
                 + "u.phone AS sender_phone "
                 + "FROM messages m "
                 + "JOIN users u ON u.id = m.sender_id "
@@ -85,7 +95,43 @@ public class MessageDao {
                         rs.getString("filename"),
                         rs.getString("content"),
                         rs.getString("etat"),
-                        rs.getTimestamp("sent_at")
+                        rs.getTimestamp("sent_at"),
+                        rs.getInt("group_id")
+                ));
+            }
+        } catch (Exception e) { e.printStackTrace(); }
+        return list;
+    }
+
+    public List<Message> getGroupConversation(int groupId) {
+        List<Message> list = new ArrayList<>();
+        if (groupId == -1) return list;
+
+        String sql = "SELECT m.id, m.sender_id, m.receiver_id, "
+                + "m.type, m.filename, m.content, m.etat, m.sent_at, m.group_id, "
+                + "u.phone AS sender_phone "
+                + "FROM messages m "
+                + "JOIN users u ON u.id = m.sender_id "
+                + "WHERE m.group_id = ? "
+                + "ORDER BY m.sent_at ASC";
+
+        try (Connection conn = DBConnection.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+
+            ps.setInt(1, groupId);
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) {
+                list.add(new Message(
+                        rs.getInt("id"),
+                        rs.getInt("sender_id"),
+                        rs.getString("sender_phone"),
+                        rs.getInt("receiver_id"),
+                        rs.getString("type"),
+                        rs.getString("filename"),
+                        rs.getString("content"),
+                        rs.getString("etat"),
+                        rs.getTimestamp("sent_at"),
+                        rs.getInt("group_id")
                 ));
             }
         } catch (Exception e) { e.printStackTrace(); }
@@ -98,7 +144,7 @@ public class MessageDao {
     public List<Message> getUndelivered(int receiverId) {
         List<Message> list = new ArrayList<>();
         String sql = "SELECT m.id, m.sender_id, m.receiver_id, "
-                + "m.type, m.filename, m.content, m.etat, m.sent_at, "
+                + "m.type, m.filename, m.content, m.etat, m.sent_at, m.group_id, "
                 + "u.phone AS sender_phone "
                 + "FROM messages m "
                 + "JOIN users u ON u.id = m.sender_id "
@@ -119,7 +165,8 @@ public class MessageDao {
                         rs.getString("filename"),
                         rs.getString("content"),
                         rs.getString("etat"),
-                        rs.getTimestamp("sent_at")
+                        rs.getTimestamp("sent_at"),
+                        rs.getInt("group_id")
                 ));
             }
         } catch (Exception e) { e.printStackTrace(); }

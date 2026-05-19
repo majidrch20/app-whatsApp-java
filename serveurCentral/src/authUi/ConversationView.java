@@ -53,6 +53,9 @@ public class ConversationView {
 
     private final MessageDao messageDao = new MessageDao();
     private final UserDao userDao = new UserDao();
+    
+    private boolean isGroup = false;
+    private int groupId = -1;
 
     // Audio recording fields
     private TargetDataLine audioLine;
@@ -64,12 +67,22 @@ public class ConversationView {
         this.myUserId = myUserId;
         this.myPhone = myPhone;
         this.contactPhone = contactPhone;
-        this.contactName = contactName != null ? contactName : contactPhone;
-        this.contactStatus = contactStatus != null ? contactStatus : "OFFLINE";
-        this.contactId = userDao.getIdByPhone(contactPhone);
+        
+        if (contactPhone != null && contactPhone.startsWith("GROUP:")) {
+            this.isGroup = true;
+            try { this.groupId = Integer.parseInt(contactPhone.substring(6)); } catch (Exception e) {}
+            this.contactId = -1;
+            this.contactName = contactName != null ? contactName : "Groupe";
+            this.contactStatus = "ONLINE";
+        } else {
+            this.isGroup = false;
+            this.contactName = contactName != null ? contactName : contactPhone;
+            this.contactStatus = contactStatus != null ? contactStatus : "OFFLINE";
+            this.contactId = userDao.getIdByPhone(contactPhone);
+        }
 
         buildUI();
-        if (contactId != -1) messageDao.markAllAsRead(contactId, myUserId);
+        if (!isGroup && contactId != -1) messageDao.markAllAsRead(contactId, myUserId);
         loadHistory();
     }
 
@@ -122,6 +135,11 @@ public class ConversationView {
         Button btnVideoCall = new Button("📹");
         btnVideoCall.setStyle("-fx-background-color: transparent; -fx-text-fill: white; -fx-font-size: 18px; -fx-cursor: hand;");
         btnVideoCall.setOnAction(e -> { if (onVideoCall != null) onVideoCall.run(); });
+
+        if (isGroup) {
+            btnAudioCall.setVisible(false);
+            btnVideoCall.setVisible(false);
+        }
 
         header.getChildren().addAll(btnBack, avatar, info, spacer, btnAudioCall, btnVideoCall);
         view.setTop(header);
@@ -178,8 +196,15 @@ public class ConversationView {
     }
 
     private void loadHistory() {
-        if (contactId == -1) return;
-        List<Message> history = messageDao.getConversation(myUserId, contactId);
+        List<Message> history;
+        if (isGroup) {
+            if (groupId == -1) return;
+            history = messageDao.getGroupConversation(groupId);
+        } else {
+            if (contactId == -1) return;
+            history = messageDao.getConversation(myUserId, contactId);
+        }
+        
         for (Message m : history) {
             boolean mine = m.getSenderId() == myUserId;
             if (m.isText()) {
@@ -348,9 +373,9 @@ public class ConversationView {
         }
     }
 
-    public void receiveMessage(String type, String filename, byte[] data) {
+    public void receiveMessage(String type, String filename, byte[] data, String realSender) {
         Platform.runLater(() -> {
-            Message m = new Message(-1, contactId, contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
+            Message m = new Message(-1, contactId, realSender != null ? realSender : contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
             if ("text".equals(type)) {
                 addMessageBubble(m, false);
             } else if ("audio".equals(type)) {
@@ -443,6 +468,12 @@ public class ConversationView {
         timeLabel.setStyle("-fx-text-fill: #969696; -fx-font-size: 10px;");
         timeLabel.setAlignment(Pos.CENTER_RIGHT);
 
+        if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
+            Label senderLbl = new Label(m.getSenderPhone());
+            senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
+            bubble.getChildren().add(0, senderLbl);
+        }
+
         bubble.getChildren().addAll(audioPlayer, timeLabel);
         wrapper.getChildren().add(bubble);
         messagesPanel.getChildren().add(wrapper);
@@ -484,6 +515,12 @@ public class ConversationView {
         downloadBtn.setStyle("-fx-background-color: #303030; -fx-text-fill: white;");
         downloadBtn.setOnAction(e -> downloadFile(localFile, filename));
         actions.getChildren().addAll(openBtn, downloadBtn);
+
+        if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
+            Label senderLbl = new Label(m.getSenderPhone());
+            senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
+            bubble.getChildren().add(0, senderLbl);
+        }
 
         bubble.getChildren().addAll(fileLabel, sizeLabel, actions);
         wrapper.getChildren().add(bubble);
@@ -550,6 +587,12 @@ public class ConversationView {
         Label timeLabel = new Label(getStatusTimeText(m, mine));
         timeLabel.setStyle("-fx-text-fill: #969696; -fx-font-size: 10px;");
         timeLabel.setAlignment(Pos.CENTER_RIGHT);
+
+        if (isGroup && !mine && m != null && m.getSenderPhone() != null) {
+            Label senderLbl = new Label(m.getSenderPhone());
+            senderLbl.setStyle("-fx-text-fill: #25D366; -fx-font-size: 11px; -fx-font-weight: bold;");
+            bubble.getChildren().add(0, senderLbl);
+        }
 
         bubble.getChildren().addAll(textFlow, timeLabel);
         wrapper.getChildren().add(bubble);

@@ -103,9 +103,16 @@ public class ContactView {
             String[] rows = data.split("\\|");
             for (String row : rows) {
                 if (row.trim().isEmpty()) continue;
-                String[] parts = row.split(":");
-                if (parts.length >= 3) {
-                    addContactUI(parts[0], parts[1], parts[2]);
+                if (row.startsWith("GROUP:")) {
+                    String[] parts = row.substring(6).split(":");
+                    if (parts.length >= 2) {
+                        addContactUI("GROUP:" + parts[0], parts[1], "ONLINE");
+                    }
+                } else {
+                    String[] parts = row.split(":");
+                    if (parts.length >= 3) {
+                        addContactUI(parts[0], parts[1], parts[2]);
+                    }
                 }
             }
         });
@@ -135,7 +142,8 @@ public class ContactView {
         Label nameLbl = new Label(name);
         nameLbl.setStyle("-fx-text-fill: white; -fx-font-weight: bold; -fx-font-size: 15px;");
         
-        Label phoneLbl = new Label(phone);
+        String subtitle = phone.startsWith("GROUP:") ? "Groupe de discussion" : phone;
+        Label phoneLbl = new Label(subtitle);
         phoneLbl.setStyle("-fx-text-fill: gray; -fx-font-size: 11px;");
         
         info.getChildren().addAll(nameLbl, phoneLbl);
