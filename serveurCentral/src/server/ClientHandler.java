@@ -58,11 +58,7 @@ public class ClientHandler extends Thread {
                 return;
             }
 
-            // Livrer les messages hors-ligne à la connexion
-            msgService.deliverOfflineMessages(userId, userPhone, this);
-
-
-            // Boucle principale
+            // Boucle principale (l'envoi des messages hors-ligne se fera sur signal CLIENT_READY)
             chatLoop();
 
         } catch (Exception e) {
@@ -209,10 +205,16 @@ public class ClientHandler extends Thread {
 
                 byte[] data = new byte[size];
                 binIn.readFully(data);
-                dispatch(type, receiverPhone, filename, data);
+                
+                if ("CLIENT_READY".equals(type)) {
+                    System.out.println("[Server] Client " + username + " est pret. Livraison des messages hors-ligne...");
+                    msgService.deliverOfflineMessages(userId, userPhone, this);
+                } else {
+                    dispatch(type, receiverPhone, filename, data);
+                }
             }
         } catch (EOFException e) {
-            System.out.println("[Server] Flux terminé pour " + username);
+            System.out.println("[Server] Flux termine pour " + username);
         }
     }
 

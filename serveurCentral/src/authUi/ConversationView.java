@@ -262,6 +262,7 @@ public class ConversationView {
         if (text.isEmpty()) return;
         textField.setText("");
         Message m = Message.text(myUserId, myPhone, contactId, text);
+        System.out.println("[SEND] message envoyé par " + myPhone + " vers " + contactPhone + " : " + text);
         addMessageBubble(m, true);
         scrollToBottom();
 
@@ -312,6 +313,7 @@ public class ConversationView {
                 String filename = file.getName();
                 String type = isVideoFile(filename) ? "video" : "file";
                 Message m = Message.binary(myUserId, myPhone, contactId, type, filename);
+                System.out.println("[SEND] fichier envoyé par " + myPhone + " vers " + contactPhone + " : " + filename);
                 addFileBubble(file, filename, type, m, true);
                 scrollToBottom();
                 
@@ -382,6 +384,7 @@ public class ConversationView {
                 byte[] data = Files.readAllBytes(tempAudioFile.toPath());
                 String filename = "vocal_" + System.currentTimeMillis() + ".wav";
                 
+                System.out.println("[SEND] message audio envoyé par " + myPhone + " vers " + contactPhone + " : " + filename);
                 Platform.runLater(() -> {
                     Message m = Message.binary(myUserId, myPhone, contactId, "audio", filename);
                     addAudioBubble(tempAudioFile, m, true);
@@ -403,6 +406,20 @@ public class ConversationView {
 
     public void receiveMessage(String type, String filename, byte[] data, String realSender, int msgId) {
         Platform.runLater(() -> {
+            System.out.println("[RECEIVE] message reçu de " + realSender + " (type=" + type + ", id=" + msgId + ")");
+            // Si c'est un echo de mon propre message -> ignorer
+            if (realSender != null && isSamePhone(realSender, myPhone)) {
+                return;
+            }
+
+            // Déduplication par msgId
+            if (msgId > 0 && displayedMessageIds.contains(msgId)) {
+                return;
+            }
+            if (msgId > 0) {
+                displayedMessageIds.add(msgId);
+            }
+
             Message m = new Message(msgId, contactId, realSender != null ? realSender : contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
             if ("text".equals(type)) {
                 addMessageBubble(m, false);
@@ -463,10 +480,11 @@ public class ConversationView {
     }
 
     private void addAudioBubble(File audioFile, Message m, boolean mine) {
-        if (m != null && m.getId() != -1) {
+        if (m != null && m.getId() > 0) {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
+        System.out.println("[UI] message audio affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -513,10 +531,11 @@ public class ConversationView {
     }
 
     private void addFileBubble(File localFile, String filename, String type, Message m, boolean mine) {
-        if (m != null && m.getId() != -1) {
+        if (m != null && m.getId() > 0) {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
+        System.out.println("[UI] message fichier affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -608,10 +627,11 @@ public class ConversationView {
     }
 
     private void addMessageBubble(Message m, boolean mine) {
-        if (m != null && m.getId() != -1) {
+        if (m != null && m.getId() > 0) {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
+        System.out.println("[UI] message texte affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -692,5 +712,16 @@ public class ConversationView {
         javafx.scene.Scene scene = new javafx.scene.Scene(vbox, 300, 200);
         dialog.setScene(scene);
         dialog.show();
+    }
+
+    private boolean isSamePhone(String p1, String p2) {
+        if (p1 == null || p2 == null) return false;
+        String d1 = p1.replaceAll("[^0-9]", "");
+        String d2 = p2.replaceAll("[^0-9]", "");
+        if (d1.equals(d2)) return true;
+        int len1 = d1.length(), len2 = d2.length();
+        if (len1 >= 9 && len2 >= 9)
+            return d1.substring(len1 - 9).equals(d2.substring(len2 - 9));
+        return false;
     }
 }

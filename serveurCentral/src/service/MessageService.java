@@ -27,7 +27,9 @@ public class MessageService {
         // Sauvegarde en DB
         int msgId = messageDao.save(m, data);
         boolean persisted = msgId != -1;
-        if (!persisted) {
+        if (persisted) {
+            System.out.println("[DB] message enregistré (id=" + msgId + ", expéditeur=" + m.getSenderPhone() + ", destinataire=" + receiverPhone + ")");
+        } else {
             System.err.println("[MessageService] Erreur : Impossible de sauvegarder le message en base de données (vérifiez la taille du fichier et le type de colonne data, e.g. LONGBLOB).");
             System.err.println("[MessageService] Tentative de livraison temps réel...");
         }
@@ -78,10 +80,11 @@ public class MessageService {
 
         int msgId = messageDao.save(m, data);
         boolean persisted = msgId != -1;
-        if (!persisted) {
-            System.err.println("[MessageService] Erreur DB pour groupe " + groupId);
-        } else {
+        if (persisted) {
+            System.out.println("[DB] message de groupe enregistré (id=" + msgId + ", groupe=" + groupId + ", expéditeur=" + m.getSenderPhone() + ")");
             messageDao.updateEtat(msgId, "DELIVERED"); // On considère délivré pour les groupes
+        } else {
+            System.err.println("[MessageService] Erreur DB pour groupe " + groupId);
         }
 
         for (int memberId : memberIds) {

@@ -72,9 +72,13 @@ public class ChatView {
 
         startBinaryListener(contactView);
         contactView.loadContacts();
-        // Retry once after listener warmup to guarantee list visibility right after login.
+        // Retry once after listener warmup to guarantee list visibility right after login, and notify server client is ready.
         new Thread(() -> {
-            try { Thread.sleep(600); } catch (InterruptedException ignored) {}
+            try {
+                Thread.sleep(100);
+                SocketManager.getInstance().sendBinary("CLIENT_READY", "", "", new byte[0]);
+                Thread.sleep(500);
+            } catch (InterruptedException ignored) {}
             contactView.loadContacts();
         }).start();
     }
@@ -465,18 +469,19 @@ public class ChatView {
 
     private String normalizePhone(String input) {
         if (input == null) return "";
-        String normalized = input.replaceAll("[\\s\\-()]", "");
-        if (normalized.startsWith("00")) {
-            normalized = "+" + normalized.substring(2);
+        if (input.startsWith("GROUP:")) return input.trim();
+        String digits = input.replaceAll("[^0-9]", "");
+        if (digits.length() >= 9) {
+            return digits.substring(digits.length() - 9);
         }
-        return normalized.trim();
+        return digits;
     }
 
     private void logout() {
         SessionManager.clearSession();
         SocketManager.reset();
         stage.close();
-        NetworkClient freshNetwork = new NetworkClient("localhost", 5000);
+        NetworkClient freshNetwork = new NetworkClient("100.104.161.251", 5000);
         new PhoneView(new AuthService(freshNetwork), freshNetwork).start(new Stage());
     }
 

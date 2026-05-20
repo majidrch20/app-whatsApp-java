@@ -13,8 +13,8 @@ public class MessageDao {
      */
     public int save(Message m, byte[] data) {
         String sql = "INSERT INTO messages"
-                + "(sender_id, receiver_id, type, filename, content, data, etat, group_id) "
-                + "VALUES (?, ?, ?, ?, ?, ?, 'NOT_DELIVERED', ?)";
+                + "(sender_id, receiver_id, type, filename, content, data, etat, group_id, sent_at) "
+                + "VALUES (?, ?, ?, ?, ?, ?, 'NOT_DELIVERED', ?, UTC_TIMESTAMP())";
 
         try (Connection conn = DBConnection.getConnection();
              PreparedStatement ps = conn.prepareStatement(

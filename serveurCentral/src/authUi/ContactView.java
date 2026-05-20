@@ -231,4 +231,14 @@ public class ContactView {
         contactRows.put(phone, item);
         convList.getChildren().add(item);
     }
+
+    private String normalizePhone(String input) {
+        if (input == null) return "";
+        if (input.startsWith("GROUP:")) return input.trim();
+        String digits = input.replaceAll("[^0-9]", "");
+        if (digits.length() >= 9) {
+            return digits.substring(digits.length() - 9);
+        }
+        return digits;
+    }
 }
