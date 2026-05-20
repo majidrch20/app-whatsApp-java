@@ -10,7 +10,7 @@ public class QueryDb {
     public static void main(String[] args) {
         try {
             Class.forName("com.mysql.cj.jdbc.Driver");
-            Connection conn = DriverManager.getConnection("jdbc:mysql://100.104.161.251:3306/chatapp", "root", "");
+            Connection conn = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatapp", "root", "");
             System.out.println("Connection successful!");
             
             Statement stmt = conn.createStatement();

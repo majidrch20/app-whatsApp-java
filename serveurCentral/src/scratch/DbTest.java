@@ -27,7 +27,7 @@ public class DbTest {
 
         System.out.println("\nTrying to connect to localhost without database to create 'chatapp'...");
         try {
-            String baseUrl = "jdbc:mysql://100.104.161.251, 3306/";
+            String baseUrl = "jdbc:mysql://localhost:3306/";
             try (Connection conn = DriverManager.getConnection(baseUrl, "root", "")) {
                 System.out.println("✅ Connected to localhost server. Creating 'chatapp' database...");
                 try (Statement stmt = conn.createStatement()) {
@@ -35,7 +35,7 @@ public class DbTest {
                     System.out.println("✅ Database 'chatapp' created/verified successfully!");
                     
                     // Verify connection to the new database
-                    try (Connection conn2 = DriverManager.getConnection("jdbc:mysql://100.104.161.251,5000/chatapp", "root", "")) {
+                    try (Connection conn2 = DriverManager.getConnection("jdbc:mysql://localhost:3306/chatapp", "root", "")) {
                         System.out.println("✅ Verified connection to new database!");
                     }
                 }
