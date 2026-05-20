@@ -33,6 +33,9 @@ public class GroupDao {
                     }
                     psMem.executeBatch();
                 }
+                for (int memberId : memberIds) {
+                    System.out.println("[DB] membre enregistré dans group_members (groupeId=" + groupId + ", user_id=" + memberId + ")");
+                }
                 return groupId;
             }
         } catch (Exception e) {
@@ -59,6 +62,7 @@ public class GroupDao {
         } catch (Exception e) {
             e.printStackTrace();
         }
+        System.out.println("[GROUP_LOAD] groupes chargés pour l’utilisateur connecté (user_id=" + userId + ", count=" + groups.size() + ")");
         return groups;
     }
 
@@ -85,7 +89,11 @@ public class GroupDao {
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, groupId);
             ps.setInt(2, userId);
-            return ps.executeUpdate() > 0;
+            boolean added = ps.executeUpdate() > 0;
+            if (added) {
+                System.out.println("[DB] membre enregistré dans group_members (groupeId=" + groupId + ", user_id=" + userId + ")");
+            }
+            return added;
         } catch (Exception e) {
             e.printStackTrace();
         }

@@ -102,6 +102,7 @@ public class Contactservice {
             dao.GroupDao groupDao = new dao.GroupDao();
             int groupId = groupDao.createGroup(groupName, userId, memberIds);
             if (groupId != -1) {
+                System.out.println("[GROUP_CREATE] groupe créé (id=" + groupId + ", nom=" + groupName + ")");
                 sendResponse(handler, "CREATE_GROUP_OK");
                 handleGet(userId, handler);
                 
@@ -110,8 +111,10 @@ public class Contactservice {
                     if (memberId == userId) continue;
                     ClientHandler memberHandler = ChatServer.clients.get(memberId);
                     if (memberHandler != null) {
+                        System.out.println("[GROUP_MEMBER_ADD] utilisateur ajouté au groupe (user_id=" + memberId + ", groupeId=" + groupId + ")");
                         handleGet(memberId, memberHandler);
                         sendResponse(memberHandler, "NOTIFY_ADDED_TO_GROUP:" + groupName);
+                        System.out.println("[SOCKET] notification envoyée au nouveau membre (id=" + memberId + ") pour le groupe " + groupName);
                     }
                 }
             } else {
@@ -126,6 +129,7 @@ public class Contactservice {
                 if (targetUser != null) {
                     dao.GroupDao groupDao = new dao.GroupDao();
                     if (groupDao.addMemberToGroup(groupId, targetUser.getId())) {
+                        System.out.println("[GROUP_MEMBER_ADD] utilisateur ajouté au groupe (user_id=" + targetUser.getId() + ", groupeId=" + groupId + ")");
                         sendResponse(handler, "ADD_MEMBER_OK");
                         // Renvoyer les contacts mis à jour à l'expéditeur
                         handleGet(userId, handler);
@@ -135,6 +139,7 @@ public class Contactservice {
                             handleGet(targetUser.getId(), targetHandler);
                             String groupName = groupDao.getGroupName(groupId);
                             sendResponse(targetHandler, "NOTIFY_ADDED_TO_GROUP:" + groupName);
+                            System.out.println("[SOCKET] notification envoyée au nouveau membre (id=" + targetUser.getId() + ") pour le groupe " + groupName);
                         }
                     } else {
                         sendResponse(handler, "ADD_MEMBER_FAIL");

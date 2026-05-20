@@ -52,20 +52,24 @@ public class ContactView {
             // Gestion des notifications de groupes
             if (payload.startsWith("NOTIFY_ADDED_TO_GROUP:")) {
                 String groupName = payload.substring("NOTIFY_ADDED_TO_GROUP:".length());
+                System.out.println("[CLIENT] notification GROUP_ADDED reçue");
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                 alert.setTitle("Nouveau Groupe");
                 alert.setHeaderText(null);
                 alert.setContentText("Vous avez été ajouté au groupe : " + groupName);
                 alert.showAndWait();
+                loadContacts();
                 return;
             }
             if (payload.startsWith("NOTIFY_REMOVED_FROM_GROUP:")) {
                 String groupName = payload.substring("NOTIFY_REMOVED_FROM_GROUP:".length());
+                System.out.println("[CLIENT] notification GROUP_REMOVED reçue pour le groupe: " + groupName);
                 javafx.scene.control.Alert alert = new javafx.scene.control.Alert(javafx.scene.control.Alert.AlertType.INFORMATION);
                 alert.setTitle("Groupe Retiré");
                 alert.setHeaderText(null);
                 alert.setContentText("Vous avez été retiré du groupe : " + groupName);
                 alert.showAndWait();
+                loadContacts();
                 return;
             }
 
@@ -155,6 +159,7 @@ public class ContactView {
                     String[] parts = row.substring(6).split(":");
                     if (parts.length >= 2) {
                         addContactUI("GROUP:" + parts[0], parts[1], "ONLINE");
+                        System.out.println("[UI] groupe affiché dans la liste des conversations (nom=" + parts[1] + ", id=" + parts[0] + ")");
                     }
                 } else {
                     String[] parts = row.split(":");
@@ -163,6 +168,7 @@ public class ContactView {
                     }
                 }
             }
+            System.out.println("[UI] liste des groupes rafraîchie");
         });
     }
 

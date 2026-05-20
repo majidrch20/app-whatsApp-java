@@ -28,10 +28,9 @@ public class MessageService {
         int msgId = messageDao.save(m, data);
         boolean persisted = msgId != -1;
         if (persisted) {
-            System.out.println("[DB] message enregistré (id=" + msgId + ", expéditeur=" + m.getSenderPhone() + ", destinataire=" + receiverPhone + ")");
+            System.out.println("[DB_SAVE] message enregistré (id=" + msgId + ", expéditeur=" + m.getSenderPhone() + ", destinataire=" + receiverPhone + ")");
         } else {
-            System.err.println("[MessageService] Erreur : Impossible de sauvegarder le message en base de données (vérifiez la taille du fichier et le type de colonne data, e.g. LONGBLOB).");
-            System.err.println("[MessageService] Tentative de livraison temps réel...");
+            System.err.println("[MessageService] Erreur : Impossible de sauvegarder le message en base de données.");
         }
 
         // Livraison si connecté
@@ -52,18 +51,15 @@ public class MessageService {
                 if (persisted) {
                     messageDao.updateEtat(msgId, "DELIVERED");
                 }
-                System.out.println("[MessageService] Message livré à id="
-                        + m.getReceiverId());
+                System.out.println("[SERVER_FORWARD] message transféré au destinataire connecté (id=" + m.getReceiverId() + ", phone=" + receiverPhone + ")");
             } catch (IOException e) {
-                System.err.println("[MessageService] Erreur livraison : "
-                        + e.getMessage());
+                System.err.println("[SERVER_FORWARD] Erreur de transfert : " + e.getMessage());
             }
         } else {
             if (persisted) {
-                System.out.println("[MessageService] Destinataire hors ligne, "
-                        + "message sauvegardé (id=" + msgId + ")");
+                System.out.println("[SERVER_FORWARD] destinataire hors ligne, message stocké en DB (id=" + msgId + ")");
             } else {
-                System.err.println("[MessageService] Destinataire hors ligne et sauvegarde échouée, message perdu.");
+                System.err.println("[SERVER_FORWARD] Destinataire hors ligne et sauvegarde échouée.");
             }
         }
     }
@@ -81,7 +77,7 @@ public class MessageService {
         int msgId = messageDao.save(m, data);
         boolean persisted = msgId != -1;
         if (persisted) {
-            System.out.println("[DB] message de groupe enregistré (id=" + msgId + ", groupe=" + groupId + ", expéditeur=" + m.getSenderPhone() + ")");
+            System.out.println("[DB_SAVE] message de groupe enregistré (id=" + msgId + ", groupe=" + groupId + ", expéditeur=" + m.getSenderPhone() + ")");
             messageDao.updateEtat(msgId, "DELIVERED"); // On considère délivré pour les groupes
         } else {
             System.err.println("[MessageService] Erreur DB pour groupe " + groupId);
@@ -97,6 +93,7 @@ public class MessageService {
                     // senderPhone is sent as "GROUP:groupId:senderPhone" so client knows it's a group
                     String senderInfo = "GROUP:" + groupId + ":" + m.getSenderPhone();
                     receiver.send(m.getType(), senderInfo, String.valueOf(msgId), m.getFilename() != null ? m.getFilename() : "", toSend);
+                    System.out.println("[SERVER_FORWARD] message de groupe transféré au membre connecté (id=" + memberId + ", groupe=" + groupId + ")");
                 } catch (Exception e) {}
             }
         }

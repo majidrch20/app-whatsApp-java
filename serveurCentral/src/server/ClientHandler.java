@@ -210,6 +210,7 @@ public class ClientHandler extends Thread {
                     System.out.println("[Server] Client " + username + " est pret. Livraison des messages hors-ligne...");
                     msgService.deliverOfflineMessages(userId, userPhone, this);
                 } else {
+                    System.out.println("[SERVER_RECEIVE] message reçu de " + (userPhone != null ? userPhone : tag()) + " vers " + receiverPhone + " : type=" + type + ", taille=" + size);
                     dispatch(type, receiverPhone, filename, data);
                 }
             }

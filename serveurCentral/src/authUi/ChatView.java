@@ -111,11 +111,15 @@ public class ChatView {
         btnAddGroup.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 20px; -fx-cursor: hand;");
         btnAddGroup.setOnAction(e -> createGroup());
 
+        Button btnRefresh = new Button("🔄");
+        btnRefresh.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 18px; -fx-cursor: hand;");
+        btnRefresh.setOnAction(e -> contactView.loadContacts());
+
         Button btnAdd = new Button("+");
         btnAdd.setStyle("-fx-background-color: transparent; -fx-text-fill: #25D366; -fx-font-size: 22px; -fx-font-weight: bold;");
         btnAdd.setOnAction(e -> addContact());
 
-        header.getChildren().addAll(avatar, nameBox, spacer, btnAddGroup, btnAdd);
+        header.getChildren().addAll(avatar, nameBox, spacer, btnAddGroup, btnRefresh, btnAdd);
 
         // Search Bar
         TextField searchField = new TextField();
@@ -235,6 +239,7 @@ public class ChatView {
                     case "image":
                     case "file":
                         Platform.runLater(() -> {
+                            System.out.println("[CLIENT_RECEIVE] message reçu de " + sender + " : type=" + type + ", id=" + msgIdStr);
                             String actualSenderStr = sender;
                             String senderForUi = sender;
                             String realSender = sender;

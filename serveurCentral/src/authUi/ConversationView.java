@@ -262,7 +262,7 @@ public class ConversationView {
         if (text.isEmpty()) return;
         textField.setText("");
         Message m = Message.text(myUserId, myPhone, contactId, text);
-        System.out.println("[SEND] message envoyé par " + myPhone + " vers " + contactPhone + " : " + text);
+        System.out.println("[CLIENT_SEND] message envoyé par " + myPhone + " vers " + contactPhone + " : type=text, contenu=" + text);
         addMessageBubble(m, true);
         scrollToBottom();
 
@@ -313,7 +313,7 @@ public class ConversationView {
                 String filename = file.getName();
                 String type = isVideoFile(filename) ? "video" : "file";
                 Message m = Message.binary(myUserId, myPhone, contactId, type, filename);
-                System.out.println("[SEND] fichier envoyé par " + myPhone + " vers " + contactPhone + " : " + filename);
+                System.out.println("[CLIENT_SEND] message envoyé par " + myPhone + " vers " + contactPhone + " : type=" + type + ", fichier=" + filename);
                 addFileBubble(file, filename, type, m, true);
                 scrollToBottom();
                 
@@ -384,7 +384,7 @@ public class ConversationView {
                 byte[] data = Files.readAllBytes(tempAudioFile.toPath());
                 String filename = "vocal_" + System.currentTimeMillis() + ".wav";
                 
-                System.out.println("[SEND] message audio envoyé par " + myPhone + " vers " + contactPhone + " : " + filename);
+                System.out.println("[CLIENT_SEND] message envoyé par " + myPhone + " vers " + contactPhone + " : type=audio, fichier=" + filename);
                 Platform.runLater(() -> {
                     Message m = Message.binary(myUserId, myPhone, contactId, "audio", filename);
                     addAudioBubble(tempAudioFile, m, true);
@@ -406,7 +406,7 @@ public class ConversationView {
 
     public void receiveMessage(String type, String filename, byte[] data, String realSender, int msgId) {
         Platform.runLater(() -> {
-            System.out.println("[RECEIVE] message reçu de " + realSender + " (type=" + type + ", id=" + msgId + ")");
+            System.out.println("[CLIENT_RECEIVE] traitement du message reçu de " + realSender + " : type=" + type + ", id=" + msgId);
             // Si c'est un echo de mon propre message -> ignorer
             if (realSender != null && isSamePhone(realSender, myPhone)) {
                 return;
@@ -415,9 +415,6 @@ public class ConversationView {
             // Déduplication par msgId
             if (msgId > 0 && displayedMessageIds.contains(msgId)) {
                 return;
-            }
-            if (msgId > 0) {
-                displayedMessageIds.add(msgId);
             }
 
             Message m = new Message(msgId, contactId, realSender != null ? realSender : contactPhone, myUserId, type, filename, "text".equals(type) ? new String(data, StandardCharsets.UTF_8) : null, "DELIVERED", new java.sql.Timestamp(System.currentTimeMillis()));
@@ -484,7 +481,7 @@ public class ConversationView {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
-        System.out.println("[UI] message audio affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
+        System.out.println("[UI_UPDATE] bulle de message audio affichée à l'écran (mine=" + mine + ", id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -535,7 +532,7 @@ public class ConversationView {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
-        System.out.println("[UI] message fichier affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
+        System.out.println("[UI_UPDATE] bulle de message fichier affichée à l'écran (mine=" + mine + ", id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
@@ -631,7 +628,7 @@ public class ConversationView {
             if (displayedMessageIds.contains(m.getId())) return;
             displayedMessageIds.add(m.getId());
         }
-        System.out.println("[UI] message texte affiché côté " + (mine ? "sender" : "receiver") + " (id=" + (m != null ? m.getId() : -1) + ")");
+        System.out.println("[UI_UPDATE] bulle de message texte affichée à l'écran (mine=" + mine + ", id=" + (m != null ? m.getId() : -1) + ")");
         HBox wrapper = new HBox();
         wrapper.setAlignment(mine ? Pos.CENTER_RIGHT : Pos.CENTER_LEFT);
 
